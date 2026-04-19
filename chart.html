@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>年度報酬率與極端風險</title>
+
+  <!-- ==============================
+       資料檔案 — 只需更新這裡
+       新增標的時，加一行 <script src="data_xxx.js"> 即可
+  ============================== -->
+  <script src="data_0050.js"></script>
+  <script src="data_vt.js"></script>
+  <script src="data_voo.js"></script>
+  <script src="data_spy.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Heiti TC", "Microsoft JhengHei", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      padding: 24px;
+    }
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 20px; }
+
+    .asset-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .asset-tab {
+      font-size: 13px; padding: 6px 20px;
+      border: 1px solid #ccc; border-radius: 20px;
+      background: #fff; cursor: pointer; color: #555;
+      transition: all 0.15s;
+    }
+    .asset-tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+    .controls label { font-size: 13px; color: #555; }
+    .controls select {
+      font-size: 13px; padding: 5px 10px;
+      border: 1px solid #ccc; border-radius: 6px;
+      background: #fff; cursor: pointer;
+    }
+    .controls button {
+      font-size: 13px; padding: 5px 20px;
+      border: 1px solid #888; border-radius: 6px;
+      background: #fff; cursor: pointer; transition: background 0.15s;
+    }
+    .controls button:hover { background: #eee; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; }
+    .legend span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+    .legend .box { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+    .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    .chart-wrap {
+      background: #fff; border-radius: 10px; padding: 20px;
+      margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .chart-container { position: relative; width: 100%; height: 420px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    .stat-card .label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .stat-card .value { font-size: 17px; font-weight: 500; color: #1a1a1a; }
+
+    .data-note {
+      margin-top: 20px; font-size: 11px; color: #aaa; text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<h1 id="pageTitle">年度報酬率與極端風險</h1>
+
+<div class="asset-tabs" id="assetTabs"></div>
+
+<div class="controls">
+  <label>起始年</label>
+  <select id="startYear"></select>
+  <label>結束年</label>
+  <select id="endYear"></select>
+  <button onclick="updateChart()">套用</button>
+</div>
+
+<div class="legend">
+  <span><span class="box" style="background:#e24b4a;"></span>年漲（紅）</span>
+  <span><span class="box" style="background:#1d9e75;"></span>年跌（綠）</span>
+  <span><span class="dot" style="background:#e24b4a;"></span>年內最高漲幅</span>
+  <span><span class="dot" style="background:#1d9e75;"></span>年內最大跌幅</span>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-container">
+    <canvas id="mainChart" role="img" aria-label="年度報酬率長條圖，含年內最高漲幅與最大跌幅散點"></canvas>
+  </div>
+</div>
+
+<div class="stats-grid" id="statsGrid"></div>
+
+<p class="data-note" id="dataNote"></p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ============================================================
+// 自動偵測所有已載入的資料集（變數名稱格式：DATA_xxx）
+// 新增標的只需加 data_xxx.js，這裡不需要改動
+// ============================================================
+const DATASETS = {};
+const ASSET_KEYS = [];
+
+if (typeof DATA_0050 !== 'undefined') { DATASETS['0050'] = DATA_0050; ASSET_KEYS.push('0050'); }
+if (typeof DATA_VT   !== 'undefined') { DATASETS['VT']   = DATA_VT;   ASSET_KEYS.push('VT');   }
+if (typeof DATA_VOO  !== 'undefined') { DATASETS['VOO']  = DATA_VOO;  ASSET_KEYS.push('VOO');  }
+if (typeof DATA_SPY  !== 'undefined') { DATASETS['SPY']  = DATA_SPY;  ASSET_KEYS.push('SPY');  }
+
+let currentAsset = ASSET_KEYS[0];
+let chartInst = null;
+
+function buildTabs() {
+  const tabsEl = document.getElementById('assetTabs');
+  tabsEl.innerHTML = '';
+  ASSET_KEYS.forEach(key => {
+    const btn = document.createElement('button');
+    btn.className = 'asset-tab' + (key === currentAsset ? ' active' : '');
+    btn.textContent = DATASETS[key].label.length > 12
+      ? key
+      : `${key}　${DATASETS[key].label}`;
+    btn.onclick = () => switchAsset(key);
+    tabsEl.appendChild(btn);
+  });
+}
+
+function fmt(v, isCurrency) {
+  return isCurrency
+    ? '$' + v.toFixed(2)
+    : v.toLocaleString('zh-TW', { maximumFractionDigits: 1 });
+}
+
+function switchAsset(asset) {
+  currentAsset = asset;
+  document.querySelectorAll('.asset-tab').forEach((b, i) => {
+    b.classList.toggle('active', ASSET_KEYS[i] === asset);
+  });
+  rebuildYearSelects();
+  updateChart();
+}
+
+function rebuildYearSelects() {
+  const ds = DATASETS[currentAsset];
+  const years = ds.data.map(d => d.y);
+  const minY = Math.min(...years);
+  const maxY = Math.max(...years);
+  const defStart = minY;
+
+  ['startYear', 'endYear'].forEach(id => document.getElementById(id).innerHTML = '');
+  years.forEach(y => {
+    document.getElementById('startYear').innerHTML += `<option value="${y}"${y === defStart ? ' selected' : ''}>${y}</option>`;
+    document.getElementById('endYear').innerHTML   += `<option value="${y}"${y === maxY   ? ' selected' : ''}>${y}</option>`;
+  });
+}
+
+function updateChart() {
+  const s = parseInt(document.getElementById('startYear').value);
+  const e = parseInt(document.getElementById('endYear').value);
+  if (s >= e) { alert('起始年必須小於結束年'); return; }
+
+  const ds = DATASETS[currentAsset];
+  document.getElementById('pageTitle').textContent = ds.label + ' — 年度報酬率與極端風險';
+  document.getElementById('dataNote').textContent = `資料來源：${ds.label}　|　最後更新：${ds.data[ds.data.length - 1].y} 年`;
+
+  const filtered = ds.data.filter(d => d.y >= s && d.y <= e);
+  const rows = filtered.map(d => ({
+    year: d.y, open: d.o, close: d.c, high: d.h, low: d.l,
+    ret:     +((d.c / d.o - 1) * 100).toFixed(2),
+    maxUp:   +((d.h / d.o - 1) * 100).toFixed(2),
+    maxDown: +((d.l / d.o - 1) * 100).toFixed(2),
+  }));
+
+  const isCurr    = ds.isCurrency;
+  const unit      = ds.unit;
+  const barColors = rows.map(r => r.ret >= 0 ? '#e24b4a' : '#1d9e75');
+
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (chartInst) chartInst.destroy();
+
+  chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r.year.toString()),
+      datasets: [
+        {
+          type: 'bar', label: '年度報酬率',
+          data: rows.map(r => r.ret),
+          backgroundColor: barColors, order: 2,
+        },
+        {
+          type: 'scatter', label: '年內最高漲幅',
+          data: rows.map(r => ({ x: r.year.toString(), y: r.maxUp })),
+          backgroundColor: '#e24b4a', pointRadius: 5, order: 1,
+        },
+        {
+          type: 'scatter', label: '年內最大跌幅',
+          data: rows.map(r => ({ x: r.year.toString(), y: r.maxDown })),
+          backgroundColor: '#1d9e75', pointRadius: 5, order: 1,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(255,255,255,0.97)',
+          borderColor: '#ccc', borderWidth: 1,
+          titleColor: '#111', bodyColor: '#333',
+          padding: 14,
+          callbacks: {
+            title: items => items[0].label + ' 年',
+            beforeBody: items => {
+              const r = rows[items[0].dataIndex];
+              return [
+                `開盤：${fmt(r.open, isCurr)} ${unit}`,
+                `收盤：${fmt(r.close, isCurr)} ${unit}`,
+                `最高：${fmt(r.high, isCurr)} ${unit}`,
+                `最低：${fmt(r.low, isCurr)} ${unit}`,
+                '───────────────────',
+              ];
+            },
+            label: item => {
+              const v = item.parsed.y;
+              return `${item.dataset.label}：${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
+            },
+            labelColor: item => ({
+              borderColor: 'transparent',
+              backgroundColor:
+                item.datasetIndex === 1 ? '#e24b4a' :
+                item.datasetIndex === 2 ? '#1d9e75' :
+                item.parsed.y >= 0 ? '#e24b4a' : '#1d9e75'
+            })
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { autoSkip: true, maxRotation: 45, font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { callback: v => v + '%', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.07)' } }
+      }
+    }
+  });
+
+  const dur       = e - s;
+  const pct       = n => dur > 0 ? (n / dur * 100).toFixed(0) : 0;
+  const c5        = rows.filter(r => r.maxDown <= -5).length;
+  const c10       = rows.filter(r => r.maxDown <= -10).length;
+  const c15       = rows.filter(r => r.maxDown <= -15).length;
+  const c20       = rows.filter(r => r.maxDown <= -20).length;
+  const r5        = rows.filter(r => r.ret <= -5).length;
+  const r10       = rows.filter(r => r.ret <= -10).length;
+  const r15       = rows.filter(r => r.ret <= -15).length;
+  const r20       = rows.filter(r => r.ret <= -20).length;
+  const avgRet    = (rows.reduce((a, r) => a + r.ret, 0) / rows.length).toFixed(1);
+  const posYears  = rows.filter(r => r.ret > 0).length;
+  const bestYear  = rows.reduce((a, b) => b.ret > a.ret ? b : a);
+  const worstYear = rows.reduce((a, b) => b.ret < a.ret ? b : a);
+
+  const stats = [
+    { label: '總年數',      value: rows.length + ' 年' },
+    { label: '平均年報酬',  value: (avgRet > 0 ? '+' : '') + avgRet + '%' },
+    { label: '上漲年數',    value: `${posYears} / ${rows.length}` },
+    { label: '最佳年份',    value: `${bestYear.year}（+${bestYear.ret.toFixed(1)}%）` },
+    { label: '最差年份',    value: `${worstYear.year}（${worstYear.ret.toFixed(1)}%）` },
+    { label: '年度跌幅 > 5%',  value: `${r5} 年（${pct(r5)}%）` },
+    { label: '年度跌幅 > 10%', value: `${r10} 年（${pct(r10)}%）` },
+    { label: '年度跌幅 > 15%', value: `${r15} 年（${pct(r15)}%）` },
+    { label: '年度跌幅 > 20%', value: `${r20} 年（${pct(r20)}%）` },
+    { label: '年中跌幅 > 5%',  value: `${c5} 年（${pct(c5)}%）` },
+    { label: '年中跌幅 > 10%', value: `${c10} 年（${pct(c10)}%）` },
+    { label: '年中跌幅 > 15%', value: `${c15} 年（${pct(c15)}%）` },
+    { label: '年中跌幅 > 20%', value: `${c20} 年（${pct(c20)}%）` },
+  ];
+
+  document.getElementById('statsGrid').innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="label">${s.label}</div>
+      <div class="value">${s.value}</div>
+    </div>
+  `).join('');
+}
+
+buildTabs();
+rebuildYearSelects();
+updateChart();
+</script>
+</body>
+</html>
