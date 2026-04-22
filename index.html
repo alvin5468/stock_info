@@ -11,7 +11,6 @@
   ============================== -->
   <script src="data_0050.js"></script>
   <script src="data_vt.js"></script>
-  <script src="data_voo.js"></script>
   <script src="data_spy.js"></script>
 
   <style>
@@ -66,6 +65,14 @@
     .data-note {
       margin-top: 20px; font-size: 11px; color: #aaa; text-align: right;
     }
+
+    .return-stats-table {
+      margin-top: 20px;
+      background: #fff; border-radius: 10px; padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .return-stats-table h3 { font-size: 16px; font-weight: 500; margin-bottom: 16px; }
+    .return-stats-table .chart-container { position: relative; width: 100%; height: 300px; }
   </style>
 </head>
 <body>
@@ -97,6 +104,8 @@
 
 <div class="stats-grid" id="statsGrid"></div>
 
+<div class="return-stats-table" id="returnStatsTable"></div>
+
 <p class="data-note" id="dataNote"></p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -115,6 +124,7 @@ if (typeof DATA_SPY  !== 'undefined') { DATASETS['SPY']  = DATA_SPY;  ASSET_KEYS
 
 let currentAsset = ASSET_KEYS[0];
 let chartInst = null;
+let histChart = null;
 
 function buildTabs() {
   const tabsEl = document.getElementById('assetTabs');
@@ -285,6 +295,63 @@ function updateChart() {
       <div class="value">${s.value}</div>
     </div>
   `).join('');
+
+  // 年度報酬率統計表
+  const bins = [-Infinity, -30, -24, -18, -12, -6, 0, 6, 12, 18, 24, 30, Infinity];
+  const counts = new Array(bins.length - 1).fill(0);
+  rows.forEach(r => {
+    for (let i = 0; i < bins.length - 1; i++) {
+      if (r.ret >= bins[i] && r.ret < bins[i + 1]) {
+        counts[i]++;
+        break;
+      }
+    }
+  });
+  const tableHTML = `
+    <h3>年度報酬率統計表</h3>
+    <div class="chart-container">
+      <canvas id="histogramChart"></canvas>
+    </div>
+  `;
+  document.getElementById('returnStatsTable').innerHTML = tableHTML;
+
+  // 建立直條圖
+  const labels = counts.map((_, i) => {
+    if (i === 0) return '< -30%';
+    else if (i === counts.length - 1) return '>= 30%';
+    else return `${bins[i]}% ~ ${bins[i + 1]}%`;
+  });
+  const histCtx = document.getElementById('histogramChart').getContext('2d');
+  if (histChart) histChart.destroy();
+  histChart = new Chart(histCtx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '出現次數',
+        data: counts,
+        backgroundColor: '#1d9e75',
+        borderColor: '#1d9e75',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: item => `${item.label}: ${item.parsed.y} 次`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.07)' } }
+      }
+    }
+  });
 }
 
 buildTabs();
