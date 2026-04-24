@@ -303,7 +303,7 @@ function updateChart() {
   `).join('');
 
   // 年度報酬率統計表
-  const bins = [-Infinity, -30, -24, -18, -12, -6, 0, 6, 12, 18, 24, 30, Infinity];
+  const bins = [-Infinity, -32, -28, -24, -20, -16, -12, -8, -4, 0, 4, 8, 12, 16, 20, 24, 28, 32, Infinity];
   const counts = new Array(bins.length - 1).fill(0);
   rows.forEach(r => {
     for (let i = 0; i < bins.length - 1; i++) {
@@ -315,10 +315,10 @@ function updateChart() {
   });
   const total = rows.length;
   const percentages = counts.map(c => total > 0 ? ((c / total) * 100).toFixed(1) : '0.0');
-  
+
   const labels = counts.map((_, i) => {
-    if (i === 0) return '< -30%';
-    else if (i === counts.length - 1) return '>= 30%';
+    if (i === 0) return '< -32%';
+    else if (i === counts.length - 1) return '>= 32%';
     else return `${bins[i]}% ~ ${bins[i + 1]}%`;
   });
   
