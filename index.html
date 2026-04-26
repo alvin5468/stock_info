@@ -12,6 +12,7 @@
   <script src="data_0050.js"></script>
   <script src="data_vt.js"></script>
   <script src="data_spy.js"></script>
+  <script src="analysis_data.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -79,6 +80,42 @@
     }
     .return-stats-table th { background: #f5f5f5; font-weight: 500; }
     .return-stats-table td:first-child, .return-stats-table th:first-child { text-align: left; }
+
+    /* ── 成分股比較區塊 ── */
+    .analysis-section { margin-top: 32px; }
+    .analysis-section h2 {
+      font-size: 17px; font-weight: 500; margin-bottom: 18px;
+      padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;
+    }
+    .analysis-section h3 {
+      font-size: 15px; font-weight: 500; margin-bottom: 12px; color: #333;
+    }
+    .summary-row {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .summary-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #f0f0f0; border-radius: 20px;
+      padding: 6px 16px; font-size: 13px; color: #444;
+    }
+    .summary-pill .pct {
+      font-size: 22px; font-weight: 600; color: #1a1a1a;
+    }
+    .summary-pill .sub { font-size: 12px; color: #888; }
+    .chart-scroll {
+      width: 100%; overflow-x: auto;
+    }
+    .legend-row {
+      display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px;
+    }
+    .legend-row span {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: #555;
+    }
+    .legend-row .dot {
+      width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -113,6 +150,11 @@
 <div class="return-stats-table" id="returnStatsTable"></div>
 
 <p class="data-note" id="dataNote"></p>
+
+<!-- ════════════════════════════════════════
+     0050 vs 成分股 累計報酬率比較
+════════════════════════════════════════ -->
+<div class="analysis-section" id="analysisSection"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
@@ -396,6 +438,200 @@ function updateChart() {
 buildTabs();
 rebuildYearSelects();
 updateChart();
+
+// ════════════════════════════════════════
+// 0050 vs 成分股 累計報酬率比較圖
+// ════════════════════════════════════════
+(function buildAnalysis() {
+  if (typeof ANALYSIS_DATA === 'undefined') return;
+
+  const etfRet   = ANALYSIS_DATA.etfReturn;          // 869.8
+  const current  = ANALYSIS_DATA.currentStocks;      // 含 0050 本身
+  const departed = ANALYSIS_DATA.departedStocks;     // 23 支已離開
+
+  // ── 顏色常數 ──
+  const C_ETF      = '#333333';
+  const C_BEAT     = '#1d9e75';
+  const C_BELOW    = '#e24b4a';
+  const C_DEP_BEAT = '#f59e0b';   // 已離開但超過0050
+  const C_DEP_BLOW = '#fdba74';   // 已離開且低於0050
+  const C_REF_LINE = 'rgba(51,51,51,0.55)';
+
+  function sortedBars(stocks) {
+    return [...stocks].sort((a, b) => b.return - a.return);
+  }
+
+  function barColor(s) {
+    if (s.type === 'etf')      return C_ETF;
+    if (s.type === 'departed') return s.return >= etfRet ? C_DEP_BEAT : C_DEP_BLOW;
+    return s.return >= etfRet ? C_BEAT : C_BELOW;
+  }
+
+  function makeSummary(stocks) {
+    const without0050 = stocks.filter(s => s.type !== 'etf');
+    const beat  = without0050.filter(s => s.return >= etfRet).length;
+    const total = without0050.length;
+    const pct   = Math.round(beat / total * 100);
+    return { beat, total, pct };
+  }
+
+  function buildChart(canvasId, stocks) {
+    const sorted = sortedBars(stocks);
+    const labels = sorted.map(s =>
+      s.type === 'etf' ? `▶ ${s.name}` : `${s.code} ${s.name}`
+    );
+    const data   = sorted.map(s => s.return);
+    const colors = sorted.map(s => barColor(s));
+
+    const maxVal = Math.max(...data, etfRet) * 1.08;
+    const minVal = Math.min(...data, -120);
+    const barH   = 22;
+    const canvasH = sorted.length * barH + 60;
+
+    const canvas = document.getElementById(canvasId);
+    canvas.height = canvasH;
+
+    const refLinePlugin = {
+      id: 'refLine',
+      afterDraw(chart) {
+        const { ctx, scales: { x, y }, chartArea } = chart;
+        const xPos = x.getPixelForValue(etfRet);
+        if (xPos < chartArea.left || xPos > chartArea.right) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = C_REF_LINE;
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.moveTo(xPos, chartArea.top);
+        ctx.lineTo(xPos, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle   = '#555';
+        ctx.font        = 'bold 11px sans-serif';
+        ctx.textAlign   = 'center';
+        ctx.fillText('0050 ▼', xPos, chartArea.top - 6);
+        ctx.restore();
+      }
+    };
+
+    return new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      plugins: [refLinePlugin],
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: colors,
+          borderRadius: 3,
+          barPercentage: 0.75,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#444',
+            padding: 10,
+            callbacks: {
+              title: items => labels[items[0].dataIndex],
+              label: item => {
+                const v = item.parsed.x;
+                const mark = v >= etfRet ? ' ▲ 超越0050' : '';
+                return `累計報酬率：${v > 0 ? '+' : ''}${v.toFixed(1)}%${mark}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            min: minVal, max: maxVal,
+            ticks: {
+              callback: v => v + '%',
+              font: { size: 10 },
+              maxTicksLimit: 8,
+            },
+            grid: { color: 'rgba(0,0,0,0.06)' }
+          },
+          y: {
+            ticks: { font: { size: 11 }, autoSkip: false },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  function summaryHTML(s, label) {
+    return `
+      <div class="summary-row">
+        <div class="summary-pill">
+          <span class="pct" style="color:#1d9e75">${s.pct}%</span>
+          <span>的股票超越 0050</span>
+          <span class="sub">（${s.beat} / ${s.total} 支）</span>
+        </div>
+        <div class="summary-pill">
+          <span class="pct" style="color:#e24b4a">${100 - s.pct}%</span>
+          <span>的股票低於 0050</span>
+          <span class="sub">（${s.total - s.beat} / ${s.total} 支）</span>
+        </div>
+      </div>`;
+  }
+
+  function legendHTML(showDeparted) {
+    let html = `<div class="legend-row">
+      <span><span class="dot" style="background:${C_ETF}"></span>0050 基準線</span>
+      <span><span class="dot" style="background:${C_BEAT}"></span>超越0050（現役）</span>
+      <span><span class="dot" style="background:${C_BELOW}"></span>低於0050（現役）</span>`;
+    if (showDeparted) {
+      html += `
+      <span><span class="dot" style="background:${C_DEP_BEAT}"></span>超越0050（已離開）</span>
+      <span><span class="dot" style="background:${C_DEP_BLOW}"></span>低於0050（已離開）</span>`;
+    }
+    return html + '</div>';
+  }
+
+  // ── 圖一：50支現役成分股 ──
+  const s1  = makeSummary(current);
+  const h1  = (current.length) * 22 + 80;
+
+  // ── 圖二：50支 + 23支已離開 ──
+  const all = [...current, ...departed];
+  const s2  = makeSummary(all);
+  const h2  = (all.length) * 22 + 80;
+
+  document.getElementById('analysisSection').innerHTML = `
+    <h2>0050 vs 成分股　累計報酬率比較（2003 → 2026）</h2>
+
+    <div class="chart-wrap">
+      <h3>圖一　2026 年現役成分股（50 支）vs 0050</h3>
+      ${summaryHTML(s1)}
+      ${legendHTML(false)}
+      <div class="chart-scroll">
+        <canvas id="chart1" width="820" height="${h1}"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-wrap" style="margin-top:24px">
+      <h3>圖二　加入 2003 年已離開的 23 支後（共 73 支）vs 0050</h3>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">
+        已下市（矽品、中華映管、奇美電子）報酬率以 −100% 計算，其餘持有至今
+      </p>
+      ${summaryHTML(s2)}
+      ${legendHTML(true)}
+      <div class="chart-scroll">
+        <canvas id="chart2" width="820" height="${h2}"></canvas>
+      </div>
+    </div>
+  `;
+
+  buildChart('chart1', current);
+  buildChart('chart2', all);
+})();
 </script>
 </body>
 </html>
