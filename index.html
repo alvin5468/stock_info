@@ -165,7 +165,7 @@
     .summary-pill .pct { font-size: 22px; font-weight: 600; color: #1a1a1a; }
     .summary-pill .sub { font-size: 12px; color: #888; }
     .chart-scroll { width: 100%; overflow-x: auto; }
-    .legend-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
     .legend-row span { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; }
     .legend-row .dot { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
 
@@ -268,6 +268,29 @@
     .crossover-card .cc-year { font-size: 24px; font-weight: 600; }
     .crossover-card .cc-label { font-size: 12px; color: #666; margin-top: 4px; }
     .crossover-card .cc-detail { font-size: 11px; color: #aaa; margin-top: 5px; }
+
+    /* ── 結論區塊 ── */
+    .sim-conclusion {
+      margin-top: 28px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px 24px;
+      border: 1px solid #e8e8e8;
+    }
+    .sim-conclusion h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .conclusion-summary { font-size: 13px; color: #666; margin-bottom: 18px; }
+    .milestone-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .milestone-table th {
+      padding: 8px 14px; text-align: center;
+      font-weight: 500; color: #555;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .milestone-table th:first-child { text-align: left; }
+    .milestone-table td { padding: 9px 14px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+    .milestone-table td:first-child { text-align: left; font-weight: 600; color: #333; font-size: 14px; }
+    .milestone-table tr:last-child td { border-bottom: none; }
+    .ms-not-reached { color: #ccc; font-size: 12px; }
+    .ms-already { color: #34d399; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -307,10 +330,10 @@
     </div>
 
     <div class="legend">
-      <span><span class="box" style="background:#e24b4a;"></span>年漲（紅）</span>
-      <span><span class="box" style="background:#1d9e75;"></span>年跌（綠）</span>
-      <span><span class="dot" style="background:#e24b4a;"></span>年內最高漲幅</span>
-      <span><span class="dot" style="background:#1d9e75;"></span>年內最大跌幅</span>
+      <span><span class="box" style="background:#f87171;"></span>年漲（紅）</span>
+      <span><span class="box" style="background:#10b981;"></span>年跌（綠）</span>
+      <span><span class="dot" style="background:#f87171;"></span>年內最高漲幅</span>
+      <span><span class="dot" style="background:#10b981;"></span>年內最大跌幅</span>
     </div>
 
     <div class="chart-wrap">
@@ -407,6 +430,8 @@
       </div>
       <div id="crossoverCards" class="sim-crossover-cards"></div>
     </div>
+
+    <div id="simConclusion" class="sim-conclusion" style="display:none"></div>
   </div>
 </section>
 
@@ -513,7 +538,7 @@ function updateChart() {
 
   const isCurr    = ds.isCurrency;
   const unit      = ds.unit;
-  const barColors = rows.map(r => r.ret >= 0 ? '#e24b4a' : '#1d9e75');
+  const barColors = rows.map(r => r.ret >= 0 ? '#f87171' : '#10b981');
 
   const ctx = document.getElementById('mainChart').getContext('2d');
   if (chartInst) chartInst.destroy();
@@ -531,12 +556,12 @@ function updateChart() {
         {
           type: 'scatter', label: '年內最高漲幅',
           data: rows.map(r => ({ x: r.year.toString(), y: r.maxUp })),
-          backgroundColor: '#e24b4a', pointRadius: 5, order: 1,
+          backgroundColor: '#f87171', pointRadius: 5, order: 1,
         },
         {
           type: 'scatter', label: '年內最大跌幅',
           data: rows.map(r => ({ x: r.year.toString(), y: r.maxDown })),
-          backgroundColor: '#1d9e75', pointRadius: 5, order: 1,
+          backgroundColor: '#10b981', pointRadius: 5, order: 1,
         },
       ]
     },
@@ -569,9 +594,9 @@ function updateChart() {
             labelColor: item => ({
               borderColor: 'transparent',
               backgroundColor:
-                item.datasetIndex === 1 ? '#e24b4a' :
-                item.datasetIndex === 2 ? '#1d9e75' :
-                item.parsed.y >= 0 ? '#e24b4a' : '#1d9e75'
+                item.datasetIndex === 1 ? '#f87171' :
+                item.datasetIndex === 2 ? '#10b981' :
+                item.parsed.y >= 0 ? '#f87171' : '#10b981'
             })
           }
         }
@@ -637,21 +662,43 @@ function updateChart() {
     return `${bins[i]}% ~ ${bins[i + 1]}%`;
   });
 
+  // 方案 A 顏色：大跌橘紅、中間淺灰、8~12% 金黃、大漲天藍
+  const histColors = counts.map((_, i) => {
+    if (i === 11)         return '#fbbf24'; // 8~12%：人們期待的平均
+    if (bins[i] < -8)    return '#10b981'; // < -8%：大跌（翠綠）
+    if (bins[i] >= 16)   return '#f87171'; // >= 16%：大漲（珊瑚紅）
+    return '#d1d5db';                       // -8%~16%：中間地帶
+  });
+
   document.getElementById('returnStatsTable').innerHTML = `
     <h3>年度報酬率統計表</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:#555">
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:#10b981;margin-right:4px;vertical-align:middle"></span>大跌（< −8%）</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:#d1d5db;margin-right:4px;vertical-align:middle"></span>中間地帶（−8% ～ +16%）</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:#fbbf24;margin-right:4px;vertical-align:middle"></span>人們期待的平均（8% ～ 12%）</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:#f87171;margin-right:4px;vertical-align:middle"></span>大漲（≥ +16%）</span>
+    </div>
     <div class="chart-container"><canvas id="histogramChart"></canvas></div>
   `;
 
   const percentagePlugin = {
     id: 'percentageLabels',
     afterDatasetsDraw(chart) {
-      const { ctx, chartArea: { top } } = chart;
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillStyle = '#333';
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
       ctx.textAlign = 'center';
-      chart.getDatasetMeta(0).data.forEach((dp, i) => {
+      meta.data.forEach((dp, i) => {
         const { x, y } = dp.getProps(['x', 'y'], true);
+        // 百分比標注
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#333';
         ctx.fillText(percentages[i] + '%', x, y - 5);
+        // 8~12% 加標注文字
+        if (i === 11 && counts[i] > 0) {
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = '#92400e';
+          ctx.fillText('← 人們期待的平均', x + 60, y + (chart.chartArea.bottom - y) / 2);
+        }
       });
     }
   };
@@ -662,7 +709,10 @@ function updateChart() {
     type: 'bar',
     data: {
       labels,
-      datasets: [{ label: '出現次數', data: counts, backgroundColor: '#1d9e75', borderColor: '#1d9e75', borderWidth: 1 }]
+      datasets: [{ label: '出現次數', data: counts,
+        backgroundColor: histColors,
+        borderColor:     histColors,
+        borderWidth: 1 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -695,8 +745,8 @@ updateChart();
   const departed = ANALYSIS_DATA.departedStocks;
 
   const C_ETF      = '#333333';
-  const C_BEAT     = '#1d9e75';
-  const C_BELOW    = '#e24b4a';
+  const C_BEAT     = '#f87171';
+  const C_BELOW    = '#10b981';
   const C_DEP_BEAT = '#f59e0b';
   const C_DEP_BLOW = '#fdba74';
   const C_REF_LINE = 'rgba(51,51,51,0.55)';
@@ -716,6 +766,118 @@ updateChart();
     return { beat, total, pct: Math.round(beat / total * 100) };
   }
 
+  // 圖一：超額報酬模式（相對 0050，截斷 +5000%）
+  function buildChart1Relative(canvasId, stocks) {
+    const CLIP   = 5000;
+    const sorted = sortedBars(stocks);
+    const labels = sorted.map(s => s.type === 'etf' ? `▶ ${s.name}` : `${s.code} ${s.name}`);
+
+    const rawExcess  = sorted.map(s => s.type === 'etf' ? 0 : s.return - etfRet);
+    const clipped    = rawExcess.map(v => Math.min(v, CLIP));
+    const colors     = sorted.map((s, i) => {
+      if (s.type === 'etf')      return C_ETF;
+      if (s.type === 'departed') return rawExcess[i] >= 0 ? C_DEP_BEAT : C_DEP_BLOW;
+      return rawExcess[i] >= 0 ? C_BEAT : C_BELOW;
+    });
+
+    const canvas = document.getElementById(canvasId);
+    canvas.height = sorted.length * 22 + 60;
+
+    const refLinePlugin = {
+      id: 'refLine',
+      afterDraw(chart) {
+        const { ctx, scales: { x }, chartArea } = chart;
+        const xPos = x.getPixelForValue(0);
+        if (xPos < chartArea.left || xPos > chartArea.right) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = C_REF_LINE;
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.moveTo(xPos, chartArea.top);
+        ctx.lineTo(xPos, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#555';
+        ctx.font      = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('0050 基準', xPos, chartArea.top - 6);
+        ctx.restore();
+      }
+    };
+
+    const annotPlugin = {
+      id: 'annotPlugin',
+      afterDatasetsDraw(chart) {
+        const { ctx, scales: { x } } = chart;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        sorted.forEach((s, i) => {
+          const bar = meta.data[i];
+          // 截斷標注
+          if (rawExcess[i] > CLIP) {
+            ctx.font      = 'bold 10px sans-serif';
+            ctx.fillStyle = C_BEAT;
+            ctx.textAlign = 'left';
+            ctx.fillText(`+${Math.round(rawExcess[i]).toLocaleString()}%  ▶`, x.getPixelForValue(CLIP) + 5, bar.y + 4);
+          }
+          // 0050 bar 標注實際報酬率（顯示在 0 線右側）
+          if (s.type === 'etf') {
+            ctx.font      = 'bold 10.5px sans-serif';
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${etfRet.toFixed(1)}%  ← 0050 基準`, x.getPixelForValue(0) + 6, bar.y + 4);
+          }
+        });
+        ctx.restore();
+      }
+    };
+
+    return new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      plugins: [refLinePlugin, annotPlugin],
+      data: { labels, datasets: [{ data: clipped, backgroundColor: colors, borderRadius: 3, barPercentage: 0.75 }] },
+      options: {
+        indexAxis: 'y',
+        responsive: false,
+        animation: false,
+        layout: { padding: { top: 22 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#444', padding: 10,
+            callbacks: {
+              title: items => labels[items[0].dataIndex],
+              label: item => {
+                const i = item.dataIndex;
+                const s = sorted[i];
+                if (s.type === 'etf') return [`累計報酬率：${s.return.toFixed(1)}%`, '（0050 基準線）'];
+                const ex = rawExcess[i];
+                const tag = s.type === 'departed' ? '（已離開）' : '';
+                return [
+                  `累計報酬率：${s.return.toFixed(1)}% ${tag}`,
+                  `超額報酬：${ex >= 0 ? '+' : ''}${ex.toFixed(1)}%`
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            min: Math.min(...rawExcess) * 1.08,
+            max: CLIP * 1.18,
+            ticks: { callback: v => (v > 0 ? '+' : '') + Math.round(v) + '%', font: { size: 10 }, maxTicksLimit: 8 },
+            grid: { color: 'rgba(0,0,0,0.06)' }
+          },
+          y: { ticks: { font: { size: 11 }, autoSkip: false }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // 圖二：絕對報酬模式（原版）
   function buildChart(canvasId, stocks) {
     const sorted   = sortedBars(stocks);
     const labels   = sorted.map(s => s.type === 'etf' ? `▶ ${s.name}` : `${s.code} ${s.name}`);
@@ -757,6 +919,7 @@ updateChart();
         indexAxis: 'y',
         responsive: false,
         animation: false,
+        layout: { padding: { top: 22 } },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -817,7 +980,10 @@ updateChart();
 
   document.getElementById('analysisSection').innerHTML = `
     <div class="chart-wrap">
-      <h3>圖一　2026 年現役成分股（50 支）vs 0050</h3>
+      <h3>圖一　2026 年現役成分股（${current.filter(s => s.type !== 'etf').length} 支）vs 0050</h3>
+      <p style="font-size:12px;color:#aaa;margin-bottom:10px">
+        ※ 報酬率以目前股價計算，不含配息，非還原股價
+      </p>
       ${summaryHTML(s1)}
       ${legendHTML(false)}
       <div class="chart-scroll">
@@ -826,9 +992,12 @@ updateChart();
     </div>
 
     <div class="chart-wrap" style="margin-top:24px">
-      <h3>圖二　加入 2003 年已離開的 23 支後（共 73 支）vs 0050</h3>
+      <h3>圖二　加入歷史已離開的 ${departed.length} 支後（共 ${current.filter(s => s.type !== 'etf').length + departed.length} 支）vs 0050</h3>
+      <p style="font-size:12px;color:#aaa;margin-bottom:6px">
+        ※ 報酬率以目前股價計算，不含配息，非還原股價
+      </p>
       <p style="font-size:12px;color:#888;margin-bottom:12px">
-        已下市（矽品、中華映管、奇美電子）報酬率以 −100% 計算，其餘持有至今
+        已下市（矽品 2325、中華映管 2475、奇美電子 3009）報酬率以 −100% 計算；中壽 2823、華亞科 3474、華寶通訊 8078 無資料不列入
       </p>
       ${summaryHTML(s2)}
       ${legendHTML(true)}
@@ -838,8 +1007,8 @@ updateChart();
     </div>
   `;
 
-  buildChart('chart1', current);
-  buildChart('chart2', [...current, ...departed]);
+  buildChart1Relative('chart1', current);
+  buildChart1Relative('chart2', [...current, ...departed]);
 })();
 
 // ════════════════════════════════════════
@@ -978,6 +1147,7 @@ function runSimulator() {
   document.getElementById('simTable').innerHTML = thead + `<tbody>${rows}</tbody>`;
 
   buildCrossoverChart(principal, monthly, investYears, years, checked);
+  buildConclusion(principal, monthly, investYears, years, checked);
 }
 
 function toggleSimTable() {
@@ -1118,6 +1288,67 @@ function buildCrossoverChart(principal, monthly, investYears, years, checked) {
       ${body}
     </div>`;
   }).join('');
+}
+
+function buildConclusion(principal, monthly, investYears, years, checked) {
+  const MILESTONES = [1000, 2000, 3000, 4000, 5000]; // 單位：萬
+  const MAX_YEARS  = 50; // 最長推算年限
+
+  // 月精度計算，找到資產首次達到 targetVal 的年份（小數）
+  function findMilestoneYear(ratePercent, targetVal) {
+    if (principal >= targetVal) return 0;
+    const r = ratePercent / 100 / 12;
+    let val = principal;
+    for (let m = 1; m <= MAX_YEARS * 12; m++) {
+      val = val * (1 + r) + (m <= investYears * 12 ? monthly : 0);
+      if (val >= targetVal) return m / 12;
+    }
+    return null;
+  }
+
+  const principalW = Math.round(principal / 10000);
+  const monthlyW   = (monthly / 10000).toFixed(1).replace(/\.0$/, '');
+  const stopNote   = investYears < years
+    ? `，第 ${investYears} 年後停止投入，觀察 ${years} 年`
+    : `，觀察 ${years} 年`;
+
+  const summary = `初始本金 ${principalW} 萬元、每月投入 ${monthlyW} 萬元，連續投入 ${investYears} 年${stopNote}`;
+
+  const thead = `<thead><tr>
+    <th>目標資產</th>
+    ${checked.map(r => `<th style="color:${SIM_COLORS[r]?.line ?? '#888'}">${r}% 年化</th>`).join('')}
+  </tr></thead>`;
+
+  let tbody = '<tbody>';
+  for (const m of MILESTONES) {
+    const targetVal   = m * 10000;
+    const label       = m >= 10000 ? (m / 10000) + ' 億' : m + ' 萬';
+    let row = `<tr><td>${label}</td>`;
+    for (const r of checked) {
+      const yr = findMilestoneYear(parseFloat(r), targetVal);
+      if (yr === 0) {
+        row += `<td class="ms-already">已達標</td>`;
+      } else if (yr === null) {
+        row += `<td class="ms-not-reached">${MAX_YEARS} 年內未達</td>`;
+      } else {
+        const yrs    = Math.floor(yr);
+        const months = Math.round((yr - yrs) * 12);
+        const txt    = months > 0 ? `第 ${yrs} 年 ${months} 個月` : `第 ${yrs} 年`;
+        row += `<td>${txt}</td>`;
+      }
+    }
+    row += '</tr>';
+    tbody += row;
+  }
+  tbody += '</tbody>';
+
+  const el = document.getElementById('simConclusion');
+  el.style.display = '';
+  el.innerHTML = `
+    <h3>結論</h3>
+    <p class="conclusion-summary">${summary}</p>
+    <table class="milestone-table">${thead}${tbody}</table>
+  `;
 }
 
 // 頁面載入時自動執行一次
