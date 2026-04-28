@@ -291,6 +291,54 @@
     .milestone-table tr:last-child td { border-bottom: none; }
     .ms-not-reached { color: #ccc; font-size: 12px; }
     .ms-already { color: #34d399; font-size: 12px; }
+
+    /* ════════════════════════════
+       錯過最佳交易日區塊
+    ════════════════════════════ */
+    .md-summary-cards {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px;
+    }
+    .md-card {
+      flex: 1; min-width: 160px;
+      background: #fff; border-radius: 10px;
+      padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .md-card .md-label { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .md-card .md-value { font-size: 24px; font-weight: 600; }
+    .md-card .md-sub   { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .md-red   { color: #f87171; }
+    .md-green { color: #10b981; }
+    .md-gray  { color: #555; }
+
+    .md-chart-wrap {
+      background: #fff; border-radius: 10px; padding: 20px 20px 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px;
+    }
+    .md-chart-title { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 16px; }
+    .md-chart-container { position: relative; width: 100%; height: 380px; }
+
+    .md-note {
+      font-size: 11px; color: #aaa; margin-top: 8px; text-align: right;
+    }
+
+    .md-table-wrap {
+      background: #fff; border-radius: 10px; padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px;
+    }
+    .md-table-title { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 16px; }
+    .md-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .md-table th {
+      padding: 8px 16px; text-align: center;
+      font-weight: 500; color: #555;
+      border-bottom: 2px solid #e0e0e0;
+      background: #fafafa;
+    }
+    .md-table th:first-child { text-align: center; width: 60px; }
+    .md-table td { padding: 10px 16px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+    .md-table tr:last-child td { border-bottom: none; }
+    .md-table tr:hover td { background: #fafafa; }
+    .md-miss-0  { background: #fff8f8; }
+    .md-miss-neg { background: #f0fdf4; }
   </style>
 </head>
 <body>
@@ -304,6 +352,7 @@
     <a href="#sec-history"    class="nav-link active" data-section="sec-history">歷史表現</a>
     <a href="#sec-comparison" class="nav-link"        data-section="sec-comparison">成分股分析</a>
     <a href="#sec-simulator"  class="nav-link"        data-section="sec-simulator">投資試算</a>
+    <a href="#sec-missing-days" class="nav-link"     data-section="sec-missing-days">錯過最佳交易日</a>
   </div>
 </nav>
 
@@ -432,6 +481,20 @@
     </div>
 
     <div id="simConclusion" class="sim-conclusion" style="display:none"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section 4：錯過最佳交易日
+════════════════════════════════════════ -->
+<section id="sec-missing-days" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>錯過最佳交易日</h2>
+      <span class="section-sub">台灣加權指數（TAIEX）— 若錯過漲幅最大的 N 天，報酬率如何變化？</span>
+    </div>
+    <div class="asset-tabs" id="mdYearTabs"></div>
+    <div id="missingDaysSection"></div>
   </div>
 </section>
 
@@ -1353,6 +1416,254 @@ function buildConclusion(principal, monthly, investYears, years, checked) {
 
 // 頁面載入時自動執行一次
 runSimulator();
+
+// ════════════════════════════════════════
+// 錯過最佳交易日
+// ════════════════════════════════════════
+// 錯過最佳交易日（多年份）
+// ════════════════════════════════════════
+(function buildMissingDays() {
+  const ALL_DATA = {
+    2025: {
+      year: 2025, totalDays: 242,
+      startIndex: 22832.06, endIndex: 28707.13,
+      summary: [
+        { miss: 0,  ret: 25.73 }, { miss: 1,  ret: 15.09 },
+        { miss: 2,  ret: 10.13 }, { miss: 3,  ret:  6.73 },
+        { miss: 4,  ret:  3.80 }, { miss: 5,  ret:  0.99 },
+        { miss: 6,  ret: -1.75 }, { miss: 7,  ret: -4.36 },
+        { miss: 8,  ret: -6.58 }, { miss: 9,  ret: -8.70 },
+        { miss: 10, ret: -10.72 },
+      ],
+      top10: [
+        { rank:  1, date: '2025-04-10', ret: 9.25 },
+        { rank:  2, date: '2025-04-23', ret: 4.50 },
+        { rank:  3, date: '2025-11-20', ret: 3.18 },
+        { rank:  4, date: '2025-04-01', ret: 2.82 },
+        { rank:  5, date: '2025-01-06', ret: 2.79 },
+        { rank:  6, date: '2025-04-11', ret: 2.78 },
+        { rank:  7, date: '2025-05-02', ret: 2.73 },
+        { rank:  8, date: '2025-08-07', ret: 2.37 },
+        { rank:  9, date: '2025-06-04', ret: 2.32 },
+        { rank: 10, date: '2025-01-16', ret: 2.27 },
+      ],
+    },
+    2024: {
+      year: 2024, totalDays: 241,
+      startIndex: 17853.76, endIndex: 23190.20,
+      summary: [
+        { miss: 0,  ret: 29.89 }, { miss: 1,  ret: 25.05 },
+        { miss: 2,  ret: 20.96 }, { miss: 3,  ret: 17.40 },
+        { miss: 4,  ret: 14.03 }, { miss: 5,  ret: 10.84 },
+        { miss: 6,  ret:  7.86 }, { miss: 7,  ret:  5.01 },
+        { miss: 8,  ret:  2.31 }, { miss: 9,  ret: -0.31 },
+        { miss: 10, ret: -2.39 },
+      ],
+      top10: [
+        { rank:  1, date: '2024-08-07', ret: 3.87 },
+        { rank:  2, date: '2024-08-06', ret: 3.38 },
+        { rank:  3, date: '2024-02-15', ret: 3.03 },
+        { rank:  4, date: '2024-09-12', ret: 2.96 },
+        { rank:  5, date: '2024-08-09', ret: 2.87 },
+        { rank:  6, date: '2024-07-23', ret: 2.76 },
+        { rank:  7, date: '2024-04-24', ret: 2.72 },
+        { rank:  8, date: '2024-12-23', ret: 2.64 },
+        { rank:  9, date: '2024-01-19', ret: 2.63 },
+        { rank: 10, date: '2024-12-02', ret: 2.13 },
+      ],
+    },
+    2022: {
+      year: 2022, totalDays: 246,
+      startIndex: 18270.51, endIndex: 14137.69,
+      summary: [
+        { miss: 0,  ret: -22.62 }, { miss: 1,  ret: -25.40 },
+        { miss: 2,  ret: -27.57 }, { miss: 3,  ret: -29.46 },
+        { miss: 4,  ret: -31.26 }, { miss: 5,  ret: -32.95 },
+        { miss: 6,  ret: -34.57 }, { miss: 7,  ret: -36.14 },
+        { miss: 8,  ret: -37.60 }, { miss: 9,  ret: -38.99 },
+        { miss: 10, ret: -40.29 },
+      ],
+      top10: [
+        { rank:  1, date: '2022-11-11', ret: 3.73 },
+        { rank:  2, date: '2022-03-17', ret: 3.00 },
+        { rank:  3, date: '2022-07-13', ret: 2.68 },
+        { rank:  4, date: '2022-11-15', ret: 2.62 },
+        { rank:  5, date: '2022-07-07', ret: 2.51 },
+        { rank:  6, date: '2022-10-14', ret: 2.48 },
+        { rank:  7, date: '2022-03-10', ret: 2.46 },
+        { rank:  8, date: '2022-06-21', ret: 2.35 },
+        { rank:  9, date: '2022-08-05', ret: 2.27 },
+        { rank: 10, date: '2022-11-09', ret: 2.18 },
+      ],
+    },
+  };
+
+  let mdChart = null;
+  let currentMdYear = 2025;
+
+  function findBreakevenDay(summary) {
+    for (const d of summary) {
+      if (d.ret < 0) return { day: d.miss, ret: d.ret };
+    }
+    return null;
+  }
+
+  function renderMissingDays(year) {
+    const DATA = ALL_DATA[year];
+    const el   = document.getElementById('missingDaysSection');
+    if (!el) return;
+
+    const fullRet   = DATA.summary[0].ret;
+    const miss5ret  = DATA.summary[5].ret;
+    const diff      = (miss5ret - fullRet).toFixed(2);
+    const breakeven = findBreakevenDay(DATA.summary);
+    const beText    = breakeven
+      ? `錯過 ${breakeven.day} 天後報酬率 ${breakeven.ret}%`
+      : '10 天內未轉負';
+    const beDayText = breakeven ? `第 ${breakeven.day} 天` : '10 天內未轉負';
+    const miss5cls  = miss5ret < 0 ? 'md-green' : 'md-red';
+    const miss5sign = miss5ret >= 0 ? '+' : '';
+    const miss5note = miss5ret < 0 ? '由正轉負' : '仍為正報酬';
+    const fullRetCls  = fullRet >= 0 ? 'md-red' : 'md-green';
+    const fullRetSign = fullRet >= 0 ? '+' : '';
+
+    el.innerHTML = `
+      <div class="md-summary-cards">
+        <div class="md-card">
+          <div class="md-label">持有全年報酬率</div>
+          <div class="md-value ${fullRetCls}">${fullRetSign}${fullRet}%</div>
+          <div class="md-sub">${DATA.year} 全年 ${DATA.totalDays} 個交易日</div>
+        </div>
+        <div class="md-card">
+          <div class="md-label">錯過最好的 5 天</div>
+          <div class="md-value ${miss5cls}">${miss5sign}${miss5ret}%</div>
+          <div class="md-sub">${miss5note}，差距 ${Math.abs(diff)}%</div>
+        </div>
+        <div class="md-card">
+          <div class="md-label">最佳單日漲幅</div>
+          <div class="md-value md-red">+${DATA.top10[0].ret}%</div>
+          <div class="md-sub">${DATA.top10[0].date}</div>
+        </div>
+        <div class="md-card">
+          <div class="md-label">錯過幾天會轉為虧損</div>
+          <div class="md-value md-gray">${beDayText}</div>
+          <div class="md-sub">${beText}</div>
+        </div>
+      </div>
+
+      <div class="md-chart-wrap">
+        <div class="md-chart-title">錯過最佳交易日數 vs 年度報酬率（%）</div>
+        <div class="md-chart-container">
+          <canvas id="missingDaysChart"></canvas>
+        </div>
+        <p class="md-note">資料來源：Yahoo Finance / 台灣加權指數（^TWII）${DATA.year} 年全年</p>
+      </div>
+
+      <div class="md-table-wrap">
+        <div class="md-table-title">${DATA.year} 年漲幅最大的 10 個交易日</div>
+        <table class="md-table">
+          <thead><tr><th>排名</th><th>日期</th><th>單日漲幅（%）</th></tr></thead>
+          <tbody>
+            ${DATA.top10.map(d => `
+            <tr>
+              <td>${d.rank}</td>
+              <td>${d.date}</td>
+              <td class="md-red">+${d.ret.toFixed(2)}%</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="md-table-wrap">
+        <div class="md-table-title">錯過最佳交易日 — 年度報酬率對照表</div>
+        <table class="md-table">
+          <thead><tr><th>錯過天數</th><th>年度報酬率（%）</th><th>說明</th></tr></thead>
+          <tbody>
+            ${DATA.summary.map(d => {
+              const cls    = d.ret < 0 ? 'md-miss-neg' : (d.miss === 0 ? 'md-miss-0' : '');
+              const retCls = d.ret >= 0 ? 'md-red' : 'md-green';
+              const label  = d.miss === 0 ? '持有全年' : `錯過漲幅最大 ${d.miss} 天`;
+              const sign   = d.ret >= 0 ? '+' : '';
+              return `<tr class="${cls}">
+                <td>${d.miss}</td>
+                <td class="${retCls}">${sign}${d.ret}%</td>
+                <td style="text-align:left;color:#666">${label}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    // 水平長條圖
+    if (mdChart) { mdChart.destroy(); mdChart = null; }
+    const labels = DATA.summary.map(d => `錯過 ${d.miss} 天`);
+    const values = DATA.summary.map(d => d.ret);
+    const colors = values.map(v => v >= 0 ? '#f87171' : '#10b981');
+
+    mdChart = new Chart(document.getElementById('missingDaysChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, barPercentage: 0.6 }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => { const v = ctx.parsed.x; return ` ${v >= 0 ? '+' : ''}${v}%`; } },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: '#f0f0f0' },
+            ticks: { callback: v => `${v >= 0 ? '+' : ''}${v}%`, font: { size: 12 } },
+          },
+          y: { grid: { display: false }, ticks: { font: { size: 12 } } },
+        },
+        layout: { padding: { right: 16 } },
+      },
+      plugins: [{
+        id: 'zeroLine',
+        afterDraw(chart) {
+          const { ctx, scales } = chart;
+          const x0 = scales.x.getPixelForValue(0);
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(x0, chart.chartArea.top);
+          ctx.lineTo(x0, chart.chartArea.bottom);
+          ctx.strokeStyle = '#aaa';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 3]);
+          ctx.stroke();
+          ctx.restore();
+        },
+      }],
+    });
+  }
+
+  // 年份切換 Tab
+  const tabsEl = document.getElementById('mdYearTabs');
+  if (tabsEl) {
+    [2025, 2024, 2022].forEach(y => {
+      const btn = document.createElement('button');
+      btn.className = 'asset-tab' + (y === currentMdYear ? ' active' : '');
+      btn.textContent = `${y} 年`;
+      btn.onclick = () => {
+        currentMdYear = y;
+        tabsEl.querySelectorAll('.asset-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderMissingDays(y);
+      };
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  renderMissingDays(currentMdYear);
+})();
 </script>
 </body>
 </html>
