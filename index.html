@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>指數化投資分析</title>
 
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-R2C2QRTPBD"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-R2C2QRTPBD');
+  </script>
+
   <!-- ==============================
        資料檔案 — 只需更新這裡
        新增標的時，加一行 <script src="data_xxx.js"> 即可
@@ -45,6 +54,16 @@
       color: #fff;
       letter-spacing: 0.03em;
       white-space: nowrap;
+    }
+    .nav-views {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      margin-left: 14px;
+      white-space: nowrap;
+    }
+    .nav-views span {
+      color: rgba(255,255,255,0.75);
+      font-weight: 600;
     }
     .nav-links {
       display: flex;
@@ -409,6 +428,42 @@
     }
     .yd-legend span { display: flex; align-items: center; gap: 5px; }
     .yd-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+    /* ════════════════════════════
+       滾動報酬率區塊
+    ════════════════════════════ */
+    .rr-stat-block {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+    }
+    .rr-asset-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 14px;
+      padding-left: 10px;
+      border-left: 3px solid #333;
+    }
+    .rr-stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .rr-stat {
+      flex: 1;
+      min-width: 110px;
+      text-align: center;
+      padding: 10px 8px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .rr-stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .rr-stat-value { font-size: 20px; font-weight: 600; color: #1a1a1a; }
+    .rr-stat-sub   { font-size: 11px; color: #aaa; margin-top: 3px; }
+    .rr-window-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -418,12 +473,19 @@
 ════════════════════════════════════════ -->
 <nav class="top-nav">
   <span class="nav-logo">指數化投資分析</span>
+  <div class="nav-views">已瀏覽 <span id="pageViewCount">—</span> 次</div>
   <div class="nav-links">
     <a href="#sec-history"      class="nav-link active" data-section="sec-history">歷史表現</a>
     <a href="#sec-yearly-updown" class="nav-link"    data-section="sec-yearly-updown">年度漲跌</a>
     <a href="#sec-missing-days"  class="nav-link"    data-section="sec-missing-days">錯過最佳交易日</a>
     <a href="#sec-comparison"    class="nav-link"    data-section="sec-comparison">成分股分析</a>
     <a href="#sec-simulator"     class="nav-link"    data-section="sec-simulator">投資試算</a>
+    <a href="#sec-rolling"       class="nav-link"    data-section="sec-rolling">滾動報酬</a>
+    <a href="#sec-lumpsum"       class="nav-link"    data-section="sec-lumpsum">歷史試算</a>
+    <a href="#sec-dca"           class="nav-link"    data-section="sec-dca">定期定額回測</a>
+    <a href="#sec-alloc"         class="nav-link"    data-section="sec-alloc">股債配置</a>
+    <a href="#sec-withdrawal"    class="nav-link"    data-section="sec-withdrawal">提領法則</a>
+    <a href="#sec-expenserate"   class="nav-link"    data-section="sec-expenserate">費用率</a>
   </div>
 </nav>
 
@@ -622,6 +684,313 @@
     </div>
 
     <div id="simConclusion" class="sim-conclusion" style="display:none"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section 6：滾動報酬率
+════════════════════════════════════════ -->
+<section id="sec-rolling" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>滾動報酬率</h2>
+      <span class="section-sub">N 年滾動年化報酬率（CAGR）— 以年度收盤價計算</span>
+    </div>
+
+    <div class="rr-window-tabs" id="rollingWindowTabs">
+      <button class="asset-tab active" data-window="1">1 年滾動</button>
+      <button class="asset-tab" data-window="3">3 年滾動</button>
+      <button class="asset-tab" data-window="5">5 年滾動</button>
+      <button class="asset-tab" data-window="10">10 年滾動</button>
+      <button class="asset-tab" data-window="15">15 年滾動</button>
+      <button class="asset-tab" data-window="20">20 年滾動</button>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-container" style="height:420px">
+        <canvas id="rollingChart"></canvas>
+      </div>
+    </div>
+
+    <div id="rollingStats" style="margin-top:16px"></div>
+
+    <p class="data-note">X 軸為滾動區間結束年份；1 年滾動即年度報酬率，N &gt; 1 顯示年化複合報酬率（CAGR）</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section 9：股債配置回測
+════════════════════════════════════════ -->
+<section id="sec-alloc" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>股債配置回測</h2>
+      <span class="section-sub">加入固定報酬的短債，比較不同股債比例對波動度與最終資產的影響</span>
+    </div>
+
+    <div class="sim-inputs">
+      <div class="sim-field">
+        <label>股票 ETF</label>
+        <select id="allocEquity" style="font-size:14px;padding:7px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;outline:none"></select>
+      </div>
+      <div class="sim-field">
+        <label>債券年化報酬率</label>
+        <input type="number" id="allocBondRate" value="3" min="0" max="15" step="0.5">
+        <span class="unit">%／年</span>
+      </div>
+      <div class="sim-field">
+        <label>起始年份</label>
+        <select id="allocStartYear" style="font-size:14px;padding:7px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;outline:none"></select>
+      </div>
+      <div class="sim-field">
+        <label>結束年份</label>
+        <select id="allocEndYear" style="font-size:14px;padding:7px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;outline:none"></select>
+      </div>
+      <div class="sim-field">
+        <label>每月投入</label>
+        <input type="number" id="allocMonthly" value="1" min="0" step="0.1">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-field">
+        <label>初始本金</label>
+        <input type="number" id="allocPrincipal" value="0" min="0" step="1">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-rate-group">
+        <label>配置比例（股:債）</label>
+        <div class="sim-rate-checks" id="allocChecks">
+          <label><input type="checkbox" name="allocRatio" value="100:0"  checked> 100:0</label>
+          <label><input type="checkbox" name="allocRatio" value="90:10"  checked> 90:10</label>
+          <label><input type="checkbox" name="allocRatio" value="80:20"  checked> 80:20</label>
+          <label><input type="checkbox" name="allocRatio" value="70:30"  checked> 70:30</label>
+          <label><input type="checkbox" name="allocRatio" value="60:40"  checked> 60:40</label>
+        </div>
+      </div>
+      <button class="sim-calc-btn" onclick="runAlloc()">計算</button>
+    </div>
+
+    <div class="sim-chart-wrap">
+      <div class="sim-chart-container" style="height:420px">
+        <canvas id="allocChart"></canvas>
+      </div>
+    </div>
+
+    <div id="allocStats" style="margin-top:16px"></div>
+
+    <div class="sim-table-wrap" style="margin-top:16px">
+      <h3 id="allocTableToggle" class="sim-table-toggle" onclick="toggleAllocTable()">
+        年度資產明細
+        <span id="allocTableArrow" class="sim-table-arrow">▶</span>
+      </h3>
+      <div id="allocTableBody" style="display:none;overflow-x:auto"></div>
+    </div>
+
+    <p class="data-note">年底再平衡至目標比例；債券以使用者設定的固定年化報酬率模擬（非真實價格數據）；年化報酬率採 IRR 計算</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section 7：歷史單筆試算
+════════════════════════════════════════ -->
+<section id="sec-lumpsum" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>歷史單筆試算</h2>
+      <span class="section-sub">選定年份投入一筆資金，以真實歷史波動計算每年資產變化</span>
+    </div>
+
+    <div class="sim-inputs">
+      <div class="sim-field">
+        <label>投入年份</label>
+        <select id="lsYear" style="font-size:14px;padding:7px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;outline:none"></select>
+      </div>
+      <div class="sim-field">
+        <label>投入金額</label>
+        <input type="number" id="lsAmount" value="100" min="1" step="1">
+        <span class="unit">萬元</span>
+      </div>
+      <button class="sim-calc-btn" onclick="runLumpSum()">計算</button>
+    </div>
+
+    <div class="sim-chart-wrap">
+      <div class="sim-chart-container" style="height:420px">
+        <canvas id="lsChart"></canvas>
+      </div>
+    </div>
+
+    <div id="lsStats" style="margin-top:16px"></div>
+
+    <div class="sim-table-wrap" style="margin-top:16px">
+      <h3 id="lsTableToggle" class="sim-table-toggle" onclick="toggleLsTable()">
+        年度資產明細
+        <span id="lsTableArrow" class="sim-table-arrow">▶</span>
+      </h3>
+      <div id="lsTableBody" style="display:none;overflow-x:auto"></div>
+    </div>
+
+    <p class="data-note">以年度開盤價買入（= 前一年收盤價），年度收盤價計算資產；不含配息</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section 8：定期定額歷史實際回測
+════════════════════════════════════════ -->
+<section id="sec-dca" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>定期定額歷史實際回測</h2>
+      <span class="section-sub">以真實歷史波動計算定期定額的實際結果，不假設固定報酬率</span>
+    </div>
+
+    <div class="sim-inputs">
+      <div class="sim-field">
+        <label>選擇標的</label>
+        <div id="dcaAssetChecks" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:2px"></div>
+      </div>
+      <div class="sim-field">
+        <label>每月投入</label>
+        <input type="number" id="dcaMonthly" value="1" min="0.1" step="0.1">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-field">
+        <label>初始本金</label>
+        <input type="number" id="dcaPrincipal" value="0" min="0" step="1">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-field">
+        <label>起始年份</label>
+        <select id="dcaStartYear" style="font-size:14px;padding:7px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;outline:none"></select>
+      </div>
+      <div class="sim-field">
+        <label>結束年份</label>
+        <select id="dcaEndYear" style="font-size:14px;padding:7px 12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;outline:none"></select>
+      </div>
+      <button class="sim-calc-btn" onclick="runDCA()">計算</button>
+    </div>
+
+    <div class="sim-chart-wrap">
+      <div class="sim-chart-container" style="height:420px">
+        <canvas id="dcaChart"></canvas>
+      </div>
+    </div>
+
+    <div id="dcaStats" style="margin-top:16px"></div>
+
+    <div class="sim-table-wrap" style="margin-top:16px">
+      <h3 id="dcaTableToggle" class="sim-table-toggle" onclick="toggleDcaTable()">
+        年度資產明細
+        <span id="dcaTableArrow" class="sim-table-arrow">▶</span>
+      </h3>
+      <div id="dcaTableBody" style="display:none;overflow-x:auto"></div>
+    </div>
+
+    <p class="data-note">每年投入金額視為年初一次性投入，與現有資產一同參與全年波動；不含配息；年化報酬率採 IRR 計算</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section：提領法則模擬
+════════════════════════════════════════ -->
+<section id="sec-withdrawal" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>提領法則模擬</h2>
+      <span class="section-sub">設定退休本金與通膨率，比較 3% 與 4% 提領率在不同報酬假設下的資產壽命</span>
+    </div>
+
+    <div class="sim-inputs">
+      <div class="sim-field">
+        <label>退休本金</label>
+        <input type="number" id="wdPrincipal" value="1000" min="1" step="10">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-field">
+        <label>觀察年限</label>
+        <input type="number" id="wdYears" value="40" min="5" max="60" step="1">
+        <span class="unit">年（5～60）</span>
+      </div>
+      <div class="sim-field">
+        <label>通膨率</label>
+        <input type="number" id="wdInflation" value="2" min="0" max="10" step="0.5">
+        <span class="unit">% / 年（0 = 固定提領）</span>
+      </div>
+      <div class="sim-rate-group">
+        <label>假設年化報酬率</label>
+        <div class="sim-rate-checks" id="wdReturnChecks">
+          <label><input type="checkbox" value="0"> 0%</label>
+          <label><input type="checkbox" value="3" checked> 3%</label>
+          <label><input type="checkbox" value="5" checked> 5%</label>
+          <label><input type="checkbox" value="7" checked> 7%</label>
+          <label><input type="checkbox" value="10"> 10%</label>
+        </div>
+      </div>
+      <button class="sim-calc-btn" onclick="runWithdrawal()">計算</button>
+    </div>
+
+    <div id="wdAmountCards" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px"></div>
+
+    <div class="sim-chart-wrap">
+      <div id="wdChartHint" style="font-size:12px;color:#aaa;margin-bottom:10px">實線 = 3% 提領　虛線 = 4% 提領</div>
+      <div class="sim-chart-container" style="height:420px">
+        <canvas id="wdChart"></canvas>
+      </div>
+    </div>
+
+    <div id="wdStats" style="margin-top:20px"></div>
+
+    <p class="data-note">每年提領金額以退休本金計算，通膨率 &gt; 0 時逐年調升；不含稅金與配息再投入；4% 法則源自 1998 年 Trinity Study</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     Section：費用率影響模擬
+════════════════════════════════════════ -->
+<section id="sec-expenserate" class="page-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2>費用率影響模擬</h2>
+      <span class="section-sub">相同假設報酬率下，費用率高低對長期資產的侵蝕效果</span>
+    </div>
+
+    <div class="sim-inputs">
+      <div class="sim-field">
+        <label>初始本金</label>
+        <input type="number" id="erPrincipal" value="0" min="0" step="10">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-field">
+        <label>每月投入</label>
+        <input type="number" id="erMonthly" value="3" min="0" step="0.5">
+        <span class="unit">萬元</span>
+      </div>
+      <div class="sim-field">
+        <label>投資年限</label>
+        <input type="number" id="erYears" value="30" min="5" max="50" step="1">
+        <span class="unit">年（5～50）</span>
+      </div>
+      <div class="sim-field">
+        <label>假設年化報酬率</label>
+        <input type="number" id="erGrossReturn" value="7" min="0.1" max="20" step="0.5">
+        <span class="unit">%（費用前毛報酬）</span>
+      </div>
+      <div class="sim-rate-group">
+        <label>比較費用率</label>
+        <div id="erPresetChecks" style="display:flex;flex-direction:column;gap:7px;margin-top:4px"></div>
+      </div>
+      <button class="sim-calc-btn" onclick="runExpenseRate()">計算</button>
+    </div>
+
+    <div id="erImpactCards" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px"></div>
+
+    <div class="sim-chart-wrap">
+      <div class="sim-chart-container" style="height:420px">
+        <canvas id="erChart"></canvas>
+      </div>
+    </div>
+
+    <div id="erStats" style="margin-top:20px"></div>
+
+    <p class="data-note">淨報酬率 = 假設報酬率 − 費用率；每月投入以年中平均價格估算；不含稅金與通膨</p>
   </div>
 </section>
 
@@ -1247,7 +1616,7 @@ function runSimulator() {
   const totalInvestYears = investYears1 + investYears2;
   const years = Math.min(50, Math.max(totalInvestYears || 1, parseInt(document.getElementById('simYears').value) || 30));
 
-  const checked = [...document.querySelectorAll('.sim-rate-checks input:checked')].map(el => el.value);
+  const checked = [...document.querySelectorAll('#sec-simulator .sim-rate-checks input:checked')].map(el => el.value);
   if (checked.length === 0) { alert('請至少勾選一個報酬率'); return; }
 
   const seriesMap = {};
@@ -1815,6 +2184,952 @@ runSimulator();
 })();
 
 // ════════════════════════════════════════
+// 共用：IRR 計算（二分法）
+// ════════════════════════════════════════
+function calcIRR(principal, annual, holdYears, finalValue) {
+  if (holdYears <= 0) return null;
+  function npv(r) {
+    let s = -(principal + annual);
+    for (let t = 1; t < holdYears; t++) s -= annual / Math.pow(1 + r, t);
+    return s + finalValue / Math.pow(1 + r, holdYears);
+  }
+  if (npv(-0.99) * npv(20) > 0) return null;
+  let lo = -0.99, hi = 20;
+  for (let i = 0; i < 300; i++) {
+    const mid = (lo + hi) / 2;
+    npv(mid) > 0 ? (lo = mid) : (hi = mid);
+  }
+  return (lo + hi) / 2;
+}
+
+// ════════════════════════════════════════
+// 定期定額歷史實際回測
+// ════════════════════════════════════════
+(function initDCA() {
+  const DCA_COLORS = {
+    '0050': '#1a1a1a',
+    'VT':   '#3b82f6',
+    'SPY':  '#f87171',
+    'VOO':  '#a855f7',
+  };
+
+  // 建立標的勾選框
+  const checksEl = document.getElementById('dcaAssetChecks');
+  ASSET_KEYS.forEach(key => {
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;color:#444';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = key; cb.checked = true; cb.id = `dcaCb_${key}`;
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(key));
+    checksEl.appendChild(lbl);
+  });
+
+  // 年份選單
+  const allYears = new Set();
+  ASSET_KEYS.forEach(key => DATASETS[key].data.forEach(d => allYears.add(d.y)));
+  const sortedYears = [...allYears].sort((a, b) => a - b);
+  const startEl = document.getElementById('dcaStartYear');
+  const endEl   = document.getElementById('dcaEndYear');
+  sortedYears.forEach(y => {
+    startEl.innerHTML += `<option value="${y}">${y} 年</option>`;
+    endEl.innerHTML   += `<option value="${y}">${y} 年</option>`;
+  });
+  startEl.value = sortedYears.includes(1993) ? 1993 : sortedYears[0];
+  endEl.value   = sortedYears[sortedYears.length - 1];
+
+  let dcaChartInst = null;
+
+  window.runDCA = function() {
+    const startYear   = parseInt(startEl.value);
+    const endYear     = parseInt(endEl.value);
+    if (startYear >= endYear) { alert('起始年必須早於結束年'); return; }
+
+    const monthlyMW   = parseFloat(document.getElementById('dcaMonthly').value)   || 1;
+    const principalMW = parseFloat(document.getElementById('dcaPrincipal').value) || 0;
+    const annual      = monthlyMW * 12 * 10000;
+    const principal   = principalMW * 10000;
+
+    const selectedKeys = ASSET_KEYS.filter(k => document.getElementById(`dcaCb_${k}`)?.checked);
+    if (!selectedKeys.length) { alert('請至少選擇一個標的'); return; }
+
+    // 每個標的的資產序列
+    const series = {};
+    selectedKeys.forEach(key => {
+      const data = DATASETS[key].data.filter(d => d.y >= startYear && d.y <= endYear);
+      if (!data.length) return;
+
+      const actualStart   = data[0].y;
+      const initPortfolio = actualStart === startYear ? principal : 0;
+      let portfolio       = initPortfolio;
+      let contributed     = 0;
+
+      const pts = [{
+        label: `${actualStart} 年初`, portfolio, invested: initPortfolio, annRet: null,
+      }];
+      let prevClose = null;
+      data.forEach(d => {
+        contributed++;
+        const basePrice = prevClose ?? d.o;
+        const annualR   = d.c / basePrice - 1;
+        portfolio = portfolio * (1 + annualR) + annual * Math.sqrt(d.c / d.o);
+        pts.push({
+          label:    d.y.toString(),
+          portfolio,
+          invested: initPortfolio + annual * contributed,
+          annRet:   +((annualR * 100).toFixed(2)),
+        });
+        prevClose = d.c;
+      });
+      series[key] = { pts, actualStart, holdYears: data.length, initPortfolio };
+    });
+
+    if (!Object.keys(series).length) { alert('所選範圍內無資料'); return; }
+
+    // 統一 label 順序
+    const labelSet = new Set();
+    Object.values(series).forEach(({ pts }) => pts.forEach(p => labelSet.add(p.label)));
+    const labels = [...labelSet].sort((a, b) => {
+      const ya = parseInt(a), yb = parseInt(b);
+      if (ya !== yb) return ya - yb;
+      return a.includes('年初') ? -1 : 1;
+    });
+
+    // 資產折線
+    const datasets = Object.entries(series).map(([key, { pts }]) => {
+      const map = Object.fromEntries(pts.map(p => [p.label, p.portfolio / 10000]));
+      return {
+        label:            DATASETS[key].label.length > 12 ? key : `${key}　${DATASETS[key].label}`,
+        data:             labels.map(l => map[l] ?? null),
+        borderColor:      DCA_COLORS[key] ?? '#888',
+        borderWidth:      2,
+        pointRadius:      labels.length <= 30 ? 3 : 2,
+        pointHoverRadius: 6,
+        tension:          0.3,
+        spanGaps:         false,
+      };
+    });
+
+    // 累積投入虛線（以使用者設定的完整期間為準）
+    const investedMap = {};
+    investedMap[`${startYear} 年初`] = principal / 10000;
+    for (let y = startYear; y <= endYear; y++) {
+      investedMap[y.toString()] = (principal + annual * (y - startYear + 1)) / 10000;
+    }
+    datasets.push({
+      label: '累積投入', data: labels.map(l => investedMap[l] ?? null),
+      borderColor: '#d1d5db', borderWidth: 1.5, borderDash: [5, 4],
+      pointRadius: 0, fill: false, tension: 0,
+    });
+
+    const ctx = document.getElementById('dcaChart').getContext('2d');
+    if (dcaChartInst) dcaChartInst.destroy();
+    dcaChartInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 20, padding: 16 } },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            callbacks: {
+              title: items => {
+                const l = items[0].label;
+                return l.includes('年初') ? l + '（開始投入）' : l + ' 年底';
+              },
+              label: item => {
+                const v = item.parsed.y;
+                if (v === null) return null;
+                if (item.dataset.label === '累積投入')
+                  return `  累積投入：${fmtMoneyFull(v * 10000)}`;
+                const lbl = labels[item.dataIndex];
+                const key = selectedKeys.find(k => item.dataset.label.includes(k));
+                const pt  = series[key]?.pts.find(p => p.label === lbl);
+                const retStr = pt?.annRet != null
+                  ? `　本年 ${pt.annRet >= 0 ? '+' : ''}${pt.annRet.toFixed(1)}%` : '';
+                return `  ${item.dataset.label}：${fmtMoneyFull(v * 10000)}${retStr}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 18 } },
+          y: {
+            ticks: { font: { size: 11 }, callback: v => fmtMoney(v * 10000) },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
+    });
+
+    // 統計卡片
+    document.getElementById('dcaStats').innerHTML = Object.entries(series).map(([key, { pts, actualStart, holdYears, initPortfolio }]) => {
+      const last     = pts[pts.length - 1];
+      const totalInv = last.invested;
+      const profit   = last.portfolio - totalInv;
+      const totalRet = (last.portfolio / totalInv - 1) * 100;
+      const irr      = calcIRR(initPortfolio, annual, holdYears, last.portfolio);
+      const color    = DCA_COLORS[key] ?? '#888';
+      const lateNote = actualStart > startYear ? `　※ ${key} 資料從 ${actualStart} 年開始` : '';
+
+      return `
+        <div class="rr-stat-block">
+          <div class="rr-asset-name" style="border-left-color:${color}">
+            ${DATASETS[key].label}（${key}）　${actualStart}–${endYear} 年，每月 ${monthlyMW} 萬${principalMW > 0 ? `，初始本金 ${principalMW} 萬` : ''}${lateNote}
+          </div>
+          <div class="rr-stats-row">
+            <div class="rr-stat">
+              <div class="rr-stat-label">持有年數</div>
+              <div class="rr-stat-value">${holdYears} 年</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">累積投入</div>
+              <div class="rr-stat-value">${fmtMoney(totalInv)}</div>
+              <div class="rr-stat-sub">${fmtMoneyFull(totalInv)}</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">最終資產</div>
+              <div class="rr-stat-value" style="color:${last.portfolio >= totalInv ? '#e24b4a' : '#10b981'}">${fmtMoney(last.portfolio)}</div>
+              <div class="rr-stat-sub">${fmtMoneyFull(last.portfolio)}</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">總獲利</div>
+              <div class="rr-stat-value" style="color:${profit >= 0 ? '#e24b4a' : '#10b981'}">${profit >= 0 ? '+' : ''}${fmtMoney(profit)}</div>
+              <div class="rr-stat-sub">報酬率 ${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(1)}%</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">年化報酬率（IRR）</div>
+              <div class="rr-stat-value" style="color:${irr != null && irr >= 0 ? '#e24b4a' : '#10b981'}">
+                ${irr != null ? (irr >= 0 ? '+' : '') + (irr * 100).toFixed(2) + '%' : '—'}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // 年度明細表格
+    const tableKeys = Object.keys(series);
+    let thead = `<thead><tr><th>年份</th>`;
+    tableKeys.forEach(key => {
+      const c = DCA_COLORS[key] ?? '#888';
+      thead += `<th style="color:${c}">${key} 資產（萬）</th><th style="color:${c}">${key} 年報酬</th>`;
+    });
+    thead += `<th>累積投入（萬）</th></tr></thead>`;
+
+    let tbody = '<tbody>';
+    labels.forEach(lbl => {
+      const isStart = lbl.includes('年初');
+      tbody += `<tr${isStart ? ' style="background:#fafafa"' : ''}><td>${lbl}${isStart ? '' : ' 年底'}</td>`;
+      tableKeys.forEach(key => {
+        const pt = series[key]?.pts.find(p => p.label === lbl);
+        if (pt) {
+          tbody += `<td style="text-align:right">${(pt.portfolio / 10000).toFixed(1)}</td>`;
+          if (pt.annRet != null) {
+            const c = pt.annRet >= 0 ? '#e24b4a' : '#10b981';
+            tbody += `<td style="text-align:center;color:${c}">${pt.annRet >= 0 ? '+' : ''}${pt.annRet.toFixed(1)}%</td>`;
+          } else {
+            tbody += `<td style="text-align:center;color:#aaa">—</td>`;
+          }
+        } else {
+          tbody += `<td colspan="2" style="text-align:center;color:#ccc">—</td>`;
+        }
+      });
+      const inv = investedMap[lbl];
+      tbody += `<td style="text-align:right;color:#888">${inv != null ? inv.toFixed(1) : '—'}</td></tr>`;
+    });
+    tbody += '</tbody>';
+
+    document.getElementById('dcaTableBody').innerHTML =
+      `<table class="sim-table">${thead}${tbody}</table>`;
+  };
+
+  window.toggleDcaTable = function() {
+    const body  = document.getElementById('dcaTableBody');
+    const arrow = document.getElementById('dcaTableArrow');
+    const open  = body.style.display === 'none';
+    body.style.display = open ? '' : 'none';
+    arrow.textContent  = open ? '▼' : '▶';
+  };
+
+  runDCA();
+})();
+
+// ════════════════════════════════════════
+// 股債配置回測
+// ════════════════════════════════════════
+(function initAlloc() {
+  const ALLOC_COLORS = {
+    '100:0': '#e24b4a',
+    '90:10': '#f97316',
+    '80:20': '#eab308',
+    '70:30': '#22c55e',
+    '60:40': '#3b82f6',
+  };
+
+  // 股票 ETF 下拉選單
+  const equityEl = document.getElementById('allocEquity');
+  ASSET_KEYS.forEach(key => {
+    equityEl.innerHTML += `<option value="${key}">${key}　${DATASETS[key].label}</option>`;
+  });
+
+  // 年份選單（依選取的股票 ETF 動態更新）
+  function rebuildAllocYears() {
+    const data = DATASETS[equityEl.value].data;
+    const years = data.map(d => d.y);
+    const sEl = document.getElementById('allocStartYear');
+    const eEl = document.getElementById('allocEndYear');
+    sEl.innerHTML = '';
+    eEl.innerHTML = '';
+    years.forEach(y => {
+      sEl.innerHTML += `<option value="${y}">${y} 年</option>`;
+      eEl.innerHTML += `<option value="${y}">${y} 年</option>`;
+    });
+    sEl.value = years[0];
+    eEl.value = years[years.length - 1];
+  }
+  equityEl.addEventListener('change', rebuildAllocYears);
+  rebuildAllocYears();
+
+  // 計算單一配置的資產序列
+  function calcAllocSeries(eqData, eqPct, bdPct, bondRate, startYear, endYear, principal, annual) {
+    const eqMap = Object.fromEntries(eqData.map(d => [d.y, d.c / d.o - 1]));
+    const years = [];
+    for (let y = startYear; y <= endYear; y++) {
+      if (eqMap[y] !== undefined) years.push(y);
+    }
+    if (!years.length) return null;
+
+    let eqVal = principal * eqPct;
+    let bdVal = principal * bdPct;
+    let contributed = 0;
+
+    const pts = [{
+      label: `${years[0]} 年初`, portfolio: principal, invested: principal,
+      blendedRet: null, eqRet: null,
+    }];
+
+    years.forEach(y => {
+      contributed++;
+      const eqRet      = eqMap[y];
+      const blendedRet = eqPct * eqRet + bdPct * bondRate;
+
+      eqVal = (eqVal + annual * eqPct) * (1 + eqRet);
+      bdVal = (bdVal + annual * bdPct) * (1 + bondRate);
+
+      const total = eqVal + bdVal;
+      eqVal = total * eqPct;   // 年底再平衡
+      bdVal = total * bdPct;
+
+      pts.push({
+        label:      y.toString(),
+        portfolio:  total,
+        invested:   principal + annual * contributed,
+        blendedRet: +(blendedRet * 100).toFixed(2),
+        eqRet:      +(eqRet * 100).toFixed(2),
+      });
+    });
+    return pts;
+  }
+
+  let allocChartInst = null;
+
+  window.runAlloc = function() {
+    const eqKey      = equityEl.value;
+    const bondRate   = (parseFloat(document.getElementById('allocBondRate').value) || 3) / 100;
+    const startYear  = parseInt(document.getElementById('allocStartYear').value);
+    const endYear    = parseInt(document.getElementById('allocEndYear').value);
+    if (startYear >= endYear) { alert('起始年必須早於結束年'); return; }
+
+    const monthlyMW   = parseFloat(document.getElementById('allocMonthly').value)   || 1;
+    const principalMW = parseFloat(document.getElementById('allocPrincipal').value) || 0;
+    const annual    = monthlyMW * 12 * 10000;
+    const principal = principalMW * 10000;
+
+    const checked = [...document.querySelectorAll('#allocChecks input[name="allocRatio"]:checked')]
+      .map(cb => cb.value);
+    if (!checked.length) { alert('請至少選擇一個配置比例'); return; }
+
+    const eqData = DATASETS[eqKey].data;
+    const series = {};
+    checked.forEach(ratio => {
+      const [eq, bd] = ratio.split(':').map(Number);
+      const pts = calcAllocSeries(eqData, eq / 100, bd / 100, bondRate, startYear, endYear, principal, annual);
+      if (pts) series[ratio] = pts;
+    });
+    if (!Object.keys(series).length) { alert('所選範圍無資料'); return; }
+
+    const refPts = series[checked[0]];
+    const labels = refPts.map(p => p.label);
+
+    // 折線圖 datasets
+    const datasets = Object.entries(series).map(([ratio, pts]) => {
+      const map = Object.fromEntries(pts.map(p => [p.label, p.portfolio / 10000]));
+      return {
+        label:            `股:債 = ${ratio}`,
+        data:             labels.map(l => map[l] ?? null),
+        borderColor:      ALLOC_COLORS[ratio] ?? '#888',
+        borderWidth:      2,
+        pointRadius:      labels.length <= 30 ? 3 : 2,
+        pointHoverRadius: 6,
+        tension:          0.3,
+        spanGaps:         false,
+      };
+    });
+
+    // 累積投入虛線
+    const investedMap = { [`${startYear} 年初`]: principal / 10000 };
+    for (let y = startYear; y <= endYear; y++) {
+      investedMap[y.toString()] = (principal + annual * (y - startYear + 1)) / 10000;
+    }
+    datasets.push({
+      label: '累積投入', data: labels.map(l => investedMap[l] ?? null),
+      borderColor: '#d1d5db', borderWidth: 1.5, borderDash: [5, 4],
+      pointRadius: 0, fill: false, tension: 0,
+    });
+
+    const ctx = document.getElementById('allocChart').getContext('2d');
+    if (allocChartInst) allocChartInst.destroy();
+    allocChartInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 20, padding: 16 } },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            callbacks: {
+              title: items => {
+                const l = items[0].label;
+                return l.includes('年初') ? l + '（開始投入）' : l + ' 年底';
+              },
+              label: item => {
+                const v = item.parsed.y;
+                if (v === null) return null;
+                if (item.dataset.label === '累積投入')
+                  return `  累積投入：${fmtMoneyFull(v * 10000)}`;
+                const lbl   = labels[item.dataIndex];
+                const ratio = item.dataset.label.replace('股:債 = ', '');
+                const pt    = series[ratio]?.find(p => p.label === lbl);
+                const blend = pt?.blendedRet != null
+                  ? `　組合 ${pt.blendedRet >= 0 ? '+' : ''}${pt.blendedRet.toFixed(1)}%` : '';
+                return `  ${item.dataset.label}：${fmtMoneyFull(v * 10000)}${blend}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 18 } },
+          y: {
+            ticks: { font: { size: 11 }, callback: v => fmtMoney(v * 10000) },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
+    });
+
+    // 統計比較表
+    const statRows = Object.entries(series).map(([ratio, pts]) => {
+      const last      = pts[pts.length - 1];
+      const holdYears = pts.length - 1;
+      const rets      = pts.slice(1).map(p => p.blendedRet);
+      const mean      = rets.reduce((a, b) => a + b, 0) / rets.length;
+      const std       = Math.sqrt(rets.reduce((a, b) => a + (b - mean) ** 2, 0) / rets.length);
+      const worst     = Math.min(...rets);
+      const negN      = rets.filter(r => r < 0).length;
+      const irr       = calcIRR(principal, annual, holdYears, last.portfolio);
+      return { ratio, last, holdYears, mean, std, worst, negN, irr };
+    });
+
+    let statsHtml = `
+      <div class="sim-table-wrap">
+        <h3 style="font-size:15px;font-weight:500;margin-bottom:14px">
+          配置比較　<span style="font-size:12px;color:#aaa;font-weight:400">股票：${DATASETS[eqKey].label}（${eqKey}）　債券假設年報酬：${(bondRate * 100).toFixed(1)}%</span>
+        </h3>
+        <table class="sim-table">
+          <thead><tr>
+            <th>配置（股:債）</th>
+            <th>最終資產</th>
+            <th>IRR</th>
+            <th>平均年報酬</th>
+            <th>波動度（σ）</th>
+            <th>最差年度</th>
+            <th>負報酬年數</th>
+          </tr></thead>
+          <tbody>`;
+
+    statRows.forEach(r => {
+      const color = ALLOC_COLORS[r.ratio] ?? '#888';
+      statsHtml += `<tr>
+        <td style="text-align:center;font-weight:600;color:${color}">股:債 = ${r.ratio}</td>
+        <td style="text-align:right;color:${r.last.portfolio >= r.last.invested ? '#e24b4a' : '#10b981'}">${fmtMoney(r.last.portfolio)}</td>
+        <td style="text-align:center;color:${r.irr != null && r.irr >= 0 ? '#e24b4a' : '#10b981'}">
+          ${r.irr != null ? (r.irr >= 0 ? '+' : '') + (r.irr * 100).toFixed(2) + '%' : '—'}
+        </td>
+        <td style="text-align:center;color:${r.mean >= 0 ? '#e24b4a' : '#10b981'}">${r.mean >= 0 ? '+' : ''}${r.mean.toFixed(1)}%</td>
+        <td style="text-align:center">${r.std.toFixed(1)}%</td>
+        <td style="text-align:center;color:#10b981">${r.worst.toFixed(1)}%</td>
+        <td style="text-align:center">${r.negN} 年</td>
+      </tr>`;
+    });
+    statsHtml += `</tbody></table></div>`;
+    document.getElementById('allocStats').innerHTML = statsHtml;
+
+    // 年度明細表格
+    const ratioKeys = Object.keys(series);
+    let thead = `<thead><tr><th>年份</th><th style="color:${ALLOC_COLORS['100:0']}">${eqKey} 年報酬</th>`;
+    ratioKeys.forEach(ratio => {
+      thead += `<th style="color:${ALLOC_COLORS[ratio] ?? '#888'}">${ratio}（萬）</th>`;
+    });
+    thead += `<th>累積投入（萬）</th></tr></thead>`;
+
+    let tbody = '<tbody>';
+    labels.forEach(lbl => {
+      const isStart = lbl.includes('年初');
+      tbody += `<tr${isStart ? ' style="background:#fafafa"' : ''}><td>${lbl}${isStart ? '' : ' 年底'}</td>`;
+
+      const refPt = series[ratioKeys[0]]?.find(p => p.label === lbl);
+      if (refPt?.eqRet != null) {
+        const ec = refPt.eqRet >= 0 ? '#e24b4a' : '#10b981';
+        tbody += `<td style="text-align:center;color:${ec}">${refPt.eqRet >= 0 ? '+' : ''}${refPt.eqRet.toFixed(1)}%</td>`;
+      } else {
+        tbody += `<td style="text-align:center;color:#aaa">—</td>`;
+      }
+
+      ratioKeys.forEach(ratio => {
+        const pt = series[ratio]?.find(p => p.label === lbl);
+        tbody += `<td style="text-align:right">${pt ? (pt.portfolio / 10000).toFixed(1) : '—'}</td>`;
+      });
+
+      const inv = investedMap[lbl];
+      tbody += `<td style="text-align:right;color:#888">${inv != null ? inv.toFixed(1) : '—'}</td></tr>`;
+    });
+    tbody += '</tbody>';
+
+    document.getElementById('allocTableBody').innerHTML =
+      `<table class="sim-table">${thead}${tbody}</table>`;
+  };
+
+  window.toggleAllocTable = function() {
+    const body  = document.getElementById('allocTableBody');
+    const arrow = document.getElementById('allocTableArrow');
+    const open  = body.style.display === 'none';
+    body.style.display = open ? '' : 'none';
+    arrow.textContent  = open ? '▼' : '▶';
+  };
+
+  runAlloc();
+})();
+
+// ════════════════════════════════════════
+// 歷史單筆試算
+// ════════════════════════════════════════
+(function initLumpSum() {
+  const LS_COLORS = {
+    '0050': '#1a1a1a',
+    'VT':   '#3b82f6',
+    'SPY':  '#f87171',
+    'VOO':  '#a855f7',
+  };
+
+  // 建立可投入年份清單（每個 dataset 排除最後一年）
+  const yearSet = new Set();
+  ASSET_KEYS.forEach(key => {
+    const data = DATASETS[key].data;
+    data.slice(0, -1).forEach(d => yearSet.add(d.y));
+  });
+  const sortedYears = [...yearSet].sort((a, b) => a - b);
+
+  const lsYearEl = document.getElementById('lsYear');
+  sortedYears.forEach(y => {
+    lsYearEl.innerHTML += `<option value="${y}">${y} 年</option>`;
+  });
+  // 預設選 2008（多標的重疊起始）
+  lsYearEl.value = sortedYears.includes(2008) ? 2008 : sortedYears[Math.floor(sortedYears.length / 2)];
+
+  let lsChartInst = null;
+
+  window.runLumpSum = function() {
+    const startYear  = parseInt(lsYearEl.value);
+    const amountMW   = parseFloat(document.getElementById('lsAmount').value) || 100;
+    const amount     = amountMW * 10000;
+
+    // 計算每個標的的資產序列
+    const series = {};
+    ASSET_KEYS.forEach(key => {
+      const data     = DATASETS[key].data;
+      const startIdx = data.findIndex(d => d.y === startYear);
+      if (startIdx === -1) return;
+
+      const openRef = data[startIdx].o;
+      // 第一個點：投入當年年初（= 初始金額）
+      const pts = [{ label: `${startYear} 年初`, value: amount, annRet: null }];
+      for (let i = startIdx; i < data.length; i++) {
+        const prevClose = i === startIdx ? data[i].o : data[i - 1].c;
+        pts.push({
+          label:  `${data[i].y}`,
+          value:  amount * data[i].c / openRef,
+          annRet: +((data[i].c / prevClose - 1) * 100).toFixed(2),
+        });
+      }
+      series[key] = pts;
+    });
+
+    if (!Object.keys(series).length) { alert('所選年份無可用資料'); return; }
+
+    // 建立統一 label 順序（以最長序列為基準）
+    const refKey = Object.keys(series).reduce((a, b) => series[a].length >= series[b].length ? a : b);
+    const labels = series[refKey].map(p => p.label);
+
+    const datasets = Object.entries(series).map(([key, pts]) => {
+      const map = Object.fromEntries(pts.map(p => [p.label, p.value / 10000]));
+      return {
+        label:           DATASETS[key].label.length > 12 ? key : `${key}　${DATASETS[key].label}`,
+        data:            labels.map(l => map[l] ?? null),
+        borderColor:     LS_COLORS[key] ?? '#888',
+        borderWidth:     2,
+        pointRadius:     labels.length <= 25 ? 3 : 2,
+        pointHoverRadius: 6,
+        tension:         0.3,
+        spanGaps:        false,
+      };
+    });
+
+    // 投入金額基準虛線
+    datasets.push({
+      label:       `投入 ${amountMW} 萬`,
+      data:        labels.map(() => amountMW),
+      borderColor: '#d1d5db',
+      borderWidth: 1.5,
+      borderDash:  [5, 4],
+      pointRadius: 0,
+      fill:        false,
+      tension:     0,
+    });
+
+    const ctx = document.getElementById('lsChart').getContext('2d');
+    if (lsChartInst) lsChartInst.destroy();
+    lsChartInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 20, padding: 16 } },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            callbacks: {
+              title: items => {
+                const l = items[0].label;
+                return l.includes('年初') ? l + '（投入）' : l + ' 年底';
+              },
+              label: item => {
+                if (item.dataset.label.startsWith('投入')) return null;
+                const v = item.parsed.y;
+                if (v === null) return null;
+                const lbl = labels[item.dataIndex];
+                const key = ASSET_KEYS.find(k => item.dataset.label.includes(k));
+                const pt  = series[key]?.find(p => p.label === lbl);
+                const retStr = pt?.annRet != null
+                  ? `　本年 ${pt.annRet >= 0 ? '+' : ''}${pt.annRet.toFixed(1)}%`
+                  : '';
+                return `  ${item.dataset.label}：${fmtMoneyFull(v * 10000)}${retStr}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 18 } },
+          y: {
+            ticks: { font: { size: 11 }, callback: v => fmtMoney(v * 10000) },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
+    });
+
+    // 統計卡片
+    document.getElementById('lsStats').innerHTML = Object.entries(series).map(([key, pts]) => {
+      const last      = pts[pts.length - 1];
+      const holdYears = pts.length - 1;
+      const totalRet  = (last.value / amount - 1) * 100;
+      const cagr      = holdYears > 1
+        ? (Math.pow(last.value / amount, 1 / holdYears) - 1) * 100
+        : totalRet;
+      const color = LS_COLORS[key] ?? '#888';
+      return `
+        <div class="rr-stat-block">
+          <div class="rr-asset-name" style="border-left-color:${color}">
+            ${DATASETS[key].label}（${key}）　${startYear} 年投入 ${amountMW} 萬元，持有至 ${last.label} 年底
+          </div>
+          <div class="rr-stats-row">
+            <div class="rr-stat">
+              <div class="rr-stat-label">持有年數</div>
+              <div class="rr-stat-value">${holdYears} 年</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">最終資產</div>
+              <div class="rr-stat-value" style="color:${last.value >= amount ? '#e24b4a' : '#10b981'}">${fmtMoney(last.value)}</div>
+              <div class="rr-stat-sub">${fmtMoneyFull(last.value)}</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">總報酬率</div>
+              <div class="rr-stat-value" style="color:${totalRet >= 0 ? '#e24b4a' : '#10b981'}">${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(1)}%</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">CAGR</div>
+              <div class="rr-stat-value" style="color:${cagr >= 0 ? '#e24b4a' : '#10b981'}">${cagr >= 0 ? '+' : ''}${cagr.toFixed(2)}%</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // 年度明細表格
+    const tableKeys = Object.keys(series);
+    let thead = `<thead><tr><th>年份</th>`;
+    tableKeys.forEach(key => {
+      const c = LS_COLORS[key] ?? '#888';
+      thead += `<th style="color:${c}">${key} 資產（萬）</th><th style="color:${c}">${key} 年報酬</th>`;
+    });
+    thead += `</tr></thead>`;
+
+    let tbody = '<tbody>';
+    labels.forEach(lbl => {
+      const isStart = lbl.includes('年初');
+      tbody += `<tr${isStart ? ' style="background:#fafafa"' : ''}><td>${lbl}${isStart ? '' : ' 年底'}</td>`;
+      tableKeys.forEach(key => {
+        const pt = series[key]?.find(p => p.label === lbl);
+        if (pt) {
+          tbody += `<td style="text-align:right">${(pt.value / 10000).toFixed(1)}</td>`;
+          if (pt.annRet != null) {
+            const c = pt.annRet >= 0 ? '#e24b4a' : '#10b981';
+            tbody += `<td style="text-align:center;color:${c}">${pt.annRet >= 0 ? '+' : ''}${pt.annRet.toFixed(1)}%</td>`;
+          } else {
+            tbody += `<td style="text-align:center;color:#aaa">—</td>`;
+          }
+        } else {
+          tbody += `<td colspan="2" style="text-align:center;color:#ccc">—</td>`;
+        }
+      });
+      tbody += `</tr>`;
+    });
+    tbody += '</tbody>';
+
+    document.getElementById('lsTableBody').innerHTML =
+      `<table class="sim-table">${thead}${tbody}</table>`;
+  };
+
+  window.toggleLsTable = function() {
+    const body  = document.getElementById('lsTableBody');
+    const arrow = document.getElementById('lsTableArrow');
+    const open  = body.style.display === 'none';
+    body.style.display = open ? '' : 'none';
+    arrow.textContent  = open ? '▼' : '▶';
+  };
+
+  runLumpSum();
+})();
+
+// ════════════════════════════════════════
+// 滾動報酬率（Rolling Returns）
+// ════════════════════════════════════════
+(function initRollingReturns() {
+  const RR_COLORS = {
+    '0050': { line: '#1a1a1a', fill: 'rgba(26,26,26,0.08)'   },
+    'VT':   { line: '#3b82f6', fill: 'rgba(59,130,246,0.08)' },
+    'SPY':  { line: '#f87171', fill: 'rgba(248,113,113,0.08)' },
+    'VOO':  { line: '#a855f7', fill: 'rgba(168,85,247,0.08)' },
+  };
+
+  let rrChartInst = null;
+
+  function calcRolling(data, windowYears) {
+    const results = [];
+    for (let i = windowYears; i < data.length; i++) {
+      const startClose = data[i - windowYears].c;
+      const endClose   = data[i].c;
+      const cagr = windowYears === 1
+        ? (endClose / startClose - 1) * 100
+        : (Math.pow(endClose / startClose, 1 / windowYears) - 1) * 100;
+      results.push({ endYear: data[i].y, startYear: data[i - windowYears].y, cagr: +cagr.toFixed(2) });
+    }
+    return results;
+  }
+
+  function buildRollingChart(windowYears) {
+    document.querySelectorAll('#rollingWindowTabs .asset-tab').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.window) === windowYears);
+    });
+
+    const seriesData = {};
+    const allYearsSet = new Set();
+
+    ASSET_KEYS.forEach(key => {
+      const data = DATASETS[key].data;
+      if (data.length <= windowYears) return;
+      const returns = calcRolling(data, windowYears);
+      seriesData[key] = returns;
+      returns.forEach(r => allYearsSet.add(r.endYear));
+    });
+
+    const years = [...allYearsSet].sort((a, b) => a - b);
+    const labels = years.map(y => y.toString());
+
+    const datasets = Object.entries(seriesData).map(([key, returns]) => {
+      const yearMap = Object.fromEntries(returns.map(r => [r.endYear, r.cagr]));
+      const dsLabel = DATASETS[key].label.length > 12
+        ? key
+        : `${key}　${DATASETS[key].label}`;
+      return {
+        label: dsLabel,
+        data: years.map(y => yearMap[y] ?? null),
+        borderColor:     RR_COLORS[key]?.line ?? '#888',
+        backgroundColor: RR_COLORS[key]?.fill ?? 'transparent',
+        borderWidth: 2,
+        pointRadius: years.length <= 20 ? 3 : 2,
+        pointHoverRadius: 6,
+        tension: 0.3,
+        spanGaps: false,
+      };
+    });
+
+    const zeroLinePlugin = {
+      id: 'rrZeroLine',
+      afterDraw(chart) {
+        const { ctx, scales: { y }, chartArea } = chart;
+        const yPos = y.getPixelForValue(0);
+        if (yPos < chartArea.top || yPos > chartArea.bottom) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.moveTo(chartArea.left, yPos);
+        ctx.lineTo(chartArea.right, yPos);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    };
+
+    const ctx = document.getElementById('rollingChart').getContext('2d');
+    if (rrChartInst) rrChartInst.destroy();
+    rrChartInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      plugins: [zeroLinePlugin],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true, position: 'top',
+            labels: { font: { size: 12 }, boxWidth: 20, padding: 16 }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            callbacks: {
+              title: items => {
+                const yr = parseInt(items[0].label);
+                return windowYears === 1
+                  ? `${yr} 年度報酬率`
+                  : `${yr - windowYears} → ${yr} 年（${windowYears} 年 CAGR）`;
+              },
+              label: item => {
+                if (item.parsed.y === null) return null;
+                const v = item.parsed.y;
+                return `  ${item.dataset.label}：${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 11 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 16 }
+          },
+          y: {
+            ticks: {
+              font: { size: 11 },
+              callback: v => (v >= 0 ? '+' : '') + v + '%'
+            },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
+    });
+
+    buildRollingStats(seriesData, windowYears);
+  }
+
+  function buildRollingStats(seriesData, windowYears) {
+    const html = Object.entries(seriesData).map(([key, returns]) => {
+      if (!returns.length) return '';
+      const values = returns.map(r => r.cagr);
+      const sorted = [...values].sort((a, b) => a - b);
+      const best   = Math.max(...values);
+      const worst  = Math.min(...values);
+      const mid    = sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+        : sorted[Math.floor(sorted.length / 2)];
+      const posN   = values.filter(v => v > 0).length;
+      const posRate = (posN / values.length * 100).toFixed(0);
+      const bestEntry  = returns.find(r => r.cagr === best);
+      const worstEntry = returns.find(r => r.cagr === worst);
+      const color = RR_COLORS[key]?.line ?? '#888';
+      const periodLabel = n => windowYears === 1 ? `${n}` : `${n - windowYears}–${n}`;
+
+      return `
+        <div class="rr-stat-block">
+          <div class="rr-asset-name" style="border-left-color:${color}">
+            ${DATASETS[key].label}（${key}）　共 ${returns.length} 個${windowYears}年期
+          </div>
+          <div class="rr-stats-row">
+            <div class="rr-stat">
+              <div class="rr-stat-label">最佳 ${windowYears === 1 ? '年度報酬' : windowYears + '年期 CAGR'}</div>
+              <div class="rr-stat-value" style="color:#e24b4a">+${best.toFixed(1)}%</div>
+              <div class="rr-stat-sub">${periodLabel(bestEntry.endYear)}</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">最差 ${windowYears === 1 ? '年度報酬' : windowYears + '年期 CAGR'}</div>
+              <div class="rr-stat-value" style="color:${worst >= 0 ? '#e24b4a' : '#10b981'}">${worst >= 0 ? '+' : ''}${worst.toFixed(1)}%</div>
+              <div class="rr-stat-sub">${periodLabel(worstEntry.endYear)}</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">中位數${windowYears === 1 ? '年度報酬' : ' CAGR'}</div>
+              <div class="rr-stat-value" style="color:${mid >= 0 ? '#e24b4a' : '#10b981'}">${mid >= 0 ? '+' : ''}${mid.toFixed(1)}%</div>
+            </div>
+            <div class="rr-stat">
+              <div class="rr-stat-label">正報酬期間</div>
+              <div class="rr-stat-value">${posRate}%</div>
+              <div class="rr-stat-sub">${posN} / ${returns.length} 期</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('rollingStats').innerHTML = html;
+  }
+
+  buildRollingChart(1);
+
+  document.querySelectorAll('#rollingWindowTabs .asset-tab').forEach(btn => {
+    btn.addEventListener('click', () => buildRollingChart(parseInt(btn.dataset.window)));
+  });
+})();
+
+// ════════════════════════════════════════
 // 年度漲跌分析
 // ════════════════════════════════════════
 (function buildYearlyUpDown() {
@@ -1972,6 +3287,431 @@ runSimulator();
   });
   html += '</tbody>';
   table.innerHTML = html;
+})();
+
+// ════════════════════════════════════════
+// 提領法則模擬
+// ════════════════════════════════════════
+(function initWithdrawal() {
+  const RETURN_COLORS = {
+    '0':  '#94a3b8',
+    '3':  '#34d399',
+    '5':  '#3b82f6',
+    '7':  '#f59e0b',
+    '10': '#a855f7',
+  };
+  const WITHDRAWAL_RATES = ['3', '4'];
+
+  let wdChartInst = null;
+
+  // 計算資產序列；回傳每年資產餘額與當年提領金額
+  function calcSeries(principal, returnRate, withdrawalRate, maxYears, inflationRate) {
+    let annual = principal * withdrawalRate / 100;
+    const r    = returnRate  / 100;
+    const inf  = inflationRate / 100;
+    const pts        = [principal]; // 第 0 年 = 退休時
+    const withdrawals = [0];        // 第 0 年無提領
+    let val = principal;
+    let depletedYear = null;
+    for (let y = 1; y <= maxYears; y++) {
+      if (y > 1) annual *= (1 + inf);   // 通膨調升提領金額
+      val = val * (1 + r) - annual;
+      if (val <= 0 && depletedYear === null) depletedYear = y;
+      pts.push(Math.max(0, val));
+      withdrawals.push(annual);
+    }
+    return { pts, withdrawals, depletedYear, firstAnnual: principal * withdrawalRate / 100 };
+  }
+
+  window.runWithdrawal = function() {
+    const principalMW = parseFloat(document.getElementById('wdPrincipal').value) || 1000;
+    const principal   = principalMW * 10000;
+    const maxYears    = Math.min(60, Math.max(5, parseInt(document.getElementById('wdYears').value) || 40));
+    const inflation   = Math.max(0, parseFloat(document.getElementById('wdInflation').value) || 0);
+    const returnRates = [...document.querySelectorAll('#wdReturnChecks input:checked')].map(el => el.value);
+    if (!returnRates.length) { alert('請至少選擇一個報酬率'); return; }
+
+    // 更新圖例提示
+    document.getElementById('wdChartHint').textContent =
+      inflation > 0
+        ? `實線 = 3% 提領　虛線 = 4% 提領　（通膨 ${inflation}% / 年，提領金額逐年調升）`
+        : '實線 = 3% 提領　虛線 = 4% 提領';
+
+    // 提領金額卡片
+    document.getElementById('wdAmountCards').innerHTML = WITHDRAWAL_RATES.map(wr => {
+      const first    = principalMW * parseFloat(wr) / 100;
+      const color    = wr === '3' ? '#3b82f6' : '#ef4444';
+      const yr10     = first * Math.pow(1 + inflation / 100, 9);
+      const yr20     = first * Math.pow(1 + inflation / 100, 19);
+      const bodyHtml = inflation > 0
+        ? `<div style="font-size:1.3rem;font-weight:700;color:${color}">第 1 年　${first.toFixed(1)} 萬</div>
+           <div style="font-size:12px;color:#666;margin-top:6px;line-height:2">
+             第 10 年　${yr10.toFixed(1)} 萬<br>
+             第 20 年　${yr20.toFixed(1)} 萬
+           </div>`
+        : `<div style="font-size:1.7rem;font-weight:700;color:${color}">${first.toFixed(0)} 萬 / 年</div>
+           <div style="font-size:13px;color:#666;margin-top:5px">每月約 ${(first / 12).toFixed(1)} 萬元</div>`;
+      return `
+        <div style="flex:1;min-width:180px;background:#fff;border-radius:10px;padding:18px 22px;
+                    box-shadow:0 1px 4px rgba(0,0,0,0.08);border-left:4px solid ${color}">
+          <div style="font-size:12px;color:#888;margin-bottom:8px">
+            ${wr}% 提領率${inflation > 0 ? `（通膨 ${inflation}%）` : ''}
+          </div>
+          ${bodyHtml}
+        </div>`;
+    }).join('');
+
+    const labels = Array.from({ length: maxYears + 1 }, (_, i) => i === 0 ? '退休時' : `第 ${i} 年`);
+
+    // 計算所有組合並建立 datasets
+    const results  = {};
+    const datasets = [];
+
+    returnRates.forEach(rr => {
+      WITHDRAWAL_RATES.forEach(wr => {
+        const key = `${rr}_${wr}`;
+        const res = calcSeries(principal, parseFloat(rr), parseFloat(wr), maxYears, inflation);
+        results[key] = res;
+        const color = RETURN_COLORS[rr] ?? '#888';
+        datasets.push({
+          label:            `年化 ${rr}%・${wr}% 提領`,
+          _key:             key,
+          data:             res.pts.map(v => v / 10000),
+          borderColor:      color,
+          backgroundColor:  'transparent',
+          borderWidth:      2,
+          borderDash:       wr === '4' ? [7, 4] : [],
+          pointRadius:      0,
+          pointHoverRadius: 5,
+          tension:          0.2,
+        });
+      });
+    });
+
+    // 本金基準線
+    datasets.push({
+      label:       `本金 ${principalMW} 萬`,
+      data:        Array(maxYears + 1).fill(principalMW),
+      borderColor: '#e5e7eb',
+      borderWidth: 1.5,
+      borderDash:  [3, 3],
+      pointRadius: 0,
+      fill:        false,
+      tension:     0,
+    });
+
+    const ctx = document.getElementById('wdChart').getContext('2d');
+    if (wdChartInst) wdChartInst.destroy();
+    wdChartInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true, position: 'top',
+            labels: { font: { size: 12 }, boxWidth: 24, padding: 14 },
+          },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            callbacks: {
+              title: items => items[0].label,
+              label: item => {
+                if (item.dataset.label.startsWith('本金')) return null;
+                const v = item.parsed.y;
+                if (v === null || v < 0) return null;
+                const key = item.dataset._key;
+                const wd  = results[key]?.withdrawals?.[item.dataIndex];
+                const wdStr = (inflation > 0 && wd != null)
+                  ? `　本年提領 ${(wd / 10000).toFixed(1)} 萬`
+                  : '';
+                return `  ${item.dataset.label}：${fmtMoneyFull(v * 10000)}${wdStr}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 11 }, maxTicksLimit: 14, autoSkip: true },
+          },
+          y: {
+            min: 0,
+            ticks: { font: { size: 11 }, callback: v => fmtMoney(v * 10000) },
+            grid: { color: 'rgba(0,0,0,0.06)' },
+          },
+        },
+      },
+    });
+
+    // 統計表格
+    const yr1_3  = (principalMW * 0.03).toFixed(0);
+    const yr1_4  = (principalMW * 0.04).toFixed(0);
+    const lastY3 = (principalMW * 0.03 * Math.pow(1 + inflation / 100, maxYears - 1)).toFixed(0);
+    const lastY4 = (principalMW * 0.04 * Math.pow(1 + inflation / 100, maxYears - 1)).toFixed(0);
+
+    const col3Header = inflation > 0
+      ? `3% 提領（第1年 ${yr1_3} 萬 → 第${maxYears}年 ${lastY3} 萬）`
+      : `3% 提領（${yr1_3} 萬/年）`;
+    const col4Header = inflation > 0
+      ? `4% 提領（第1年 ${yr1_4} 萬 → 第${maxYears}年 ${lastY4} 萬）`
+      : `4% 提領（${yr1_4} 萬/年）`;
+
+    let html = `
+      <div style="background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:14px">資產壽命總覽</h3>
+        <table class="sim-table">
+          <thead><tr>
+            <th style="text-align:left">假設年化報酬</th>
+            <th>${col3Header}</th>
+            <th>${col4Header}</th>
+          </tr></thead>
+          <tbody>`;
+
+    returnRates.forEach(rr => {
+      function cell(wr) {
+        const res = results[`${rr}_${wr}`];
+        if (!res) return '<td>—</td>';
+        let durStr;
+        if (res.depletedYear === null) {
+          const finalMW = Math.round(res.pts[res.pts.length - 1] / 10000).toLocaleString('zh-TW');
+          durStr = `<span style="color:#10b981;font-weight:600">永續</span><br>
+                    <span style="font-size:11px;color:#aaa">第 ${maxYears} 年剩 ${finalMW} 萬</span>`;
+        } else {
+          durStr = `<span style="color:#e24b4a;font-weight:600">第 ${res.depletedYear} 年耗盡</span>`;
+        }
+        let wdNote = '';
+        if (inflation > 0) {
+          const lastYr  = Math.min(res.depletedYear ?? maxYears, maxYears);
+          const lastWD  = res.withdrawals[lastYr];
+          if (lastWD) wdNote = `<br><span style="font-size:11px;color:#aaa">第 ${lastYr} 年提領 ${(lastWD / 10000).toFixed(1)} 萬</span>`;
+        }
+        return `<td style="text-align:center">${durStr}${wdNote}</td>`;
+      }
+      html += `<tr>
+        <td style="text-align:left;font-weight:600;color:${RETURN_COLORS[rr] ?? '#333'}">${rr}% 報酬</td>
+        ${cell('3')}${cell('4')}
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    document.getElementById('wdStats').innerHTML = html;
+  };
+
+  runWithdrawal();
+})();
+
+// ════════════════════════════════════════
+// 費用率影響模擬
+// ════════════════════════════════════════
+(function initExpenseRate() {
+  const ER_PRESETS = [
+    { rate: '0.03', label: 'VOO / SPY（美股 ETF）', color: '#059669', checked: true  },
+    { rate: '0.07', label: 'VT（全球 ETF）',         color: '#10b981', checked: false },
+    { rate: '0.20', label: '0050（台股 ETF）',       color: '#3b82f6', checked: true  },
+    { rate: '1.00', label: '主動基金（低費）',         color: '#f59e0b', checked: false },
+    { rate: '1.50', label: '主動基金（均費）',         color: '#f97316', checked: true  },
+    { rate: '2.00', label: '主動基金（高費）',         color: '#ef4444', checked: false },
+  ];
+
+  // 建立 checkbox 清單
+  const checksEl = document.getElementById('erPresetChecks');
+  ER_PRESETS.forEach(p => {
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:#444';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = p.rate; cb.checked = p.checked;
+    cb.dataset.label = p.label; cb.dataset.color = p.color;
+    const dot = document.createElement('span');
+    dot.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0`;
+    lbl.appendChild(cb); lbl.appendChild(dot);
+    lbl.appendChild(document.createTextNode(`${p.rate}%　${p.label}`));
+    checksEl.appendChild(lbl);
+  });
+
+  let erChartInst = null;
+
+  function calcER(principal, annual, grossR, erRate, years) {
+    const netR = (grossR - erRate) / 100;
+    const pts = [principal];
+    let val = principal;
+    for (let y = 1; y <= years; y++) {
+      val = val * (1 + netR) + annual * Math.sqrt(Math.max(0, 1 + netR));
+      pts.push(Math.max(0, val));
+    }
+    return pts;
+  }
+
+  window.runExpenseRate = function() {
+    const principalMW = parseFloat(document.getElementById('erPrincipal').value)   || 0;
+    const monthlyMW   = parseFloat(document.getElementById('erMonthly').value)     || 3;
+    const years       = Math.min(50, Math.max(5, parseInt(document.getElementById('erYears').value) || 30));
+    const grossR      = parseFloat(document.getElementById('erGrossReturn').value) || 7;
+    const principal   = principalMW * 10000;
+    const annual      = monthlyMW * 12 * 10000;
+
+    const selected = [...document.querySelectorAll('#erPresetChecks input:checked')];
+    if (!selected.length) { alert('請至少選擇一項費用率'); return; }
+
+    const labels = Array.from({ length: years + 1 }, (_, i) => i === 0 ? '第 0 年' : `第 ${i} 年`);
+
+    // 計算各費用率的資產序列
+    const seriesMap = {};
+    const datasets  = [];
+    selected.forEach(cb => {
+      const rate  = parseFloat(cb.value);
+      const color = cb.dataset.color;
+      const pts   = calcER(principal, annual, grossR, rate, years);
+      seriesMap[cb.value] = { pts, rate, color, label: cb.dataset.label };
+      datasets.push({
+        label:            `${cb.value}%　${cb.dataset.label}`,
+        data:             pts.map(v => v / 10000),
+        borderColor:      color,
+        backgroundColor:  'transparent',
+        borderWidth:      2.5,
+        pointRadius:      0,
+        pointHoverRadius: 5,
+        tension:          0.2,
+      });
+    });
+
+    // 費用差距卡片（以最低費率為基準）
+    const sortedRates = Object.values(seriesMap).sort((a, b) => a.rate - b.rate);
+    const base = sortedRates[0];
+    const baseFinal = base.pts[years];
+
+    document.getElementById('erImpactCards').innerHTML = sortedRates.slice(1).map(s => {
+      const diff    = baseFinal - s.pts[years];
+      const diffPct = baseFinal > 0 ? (diff / baseFinal * 100) : 0;
+      const diffMW  = Math.round(diff / 10000).toLocaleString('zh-TW');
+      return `
+        <div style="flex:1;min-width:160px;background:#fff;border-radius:10px;padding:16px 20px;
+                    box-shadow:0 1px 4px rgba(0,0,0,0.08);border-left:4px solid ${s.color}">
+          <div style="font-size:11px;color:#888;margin-bottom:6px">
+            ${s.rate}% 費率 vs ${base.rate}% 基準
+          </div>
+          <div style="font-size:1.4rem;font-weight:700;color:#e24b4a">− ${diffMW} 萬</div>
+          <div style="font-size:12px;color:#666;margin-top:4px">
+            少了 ${diffPct.toFixed(1)}%　第 ${years} 年
+          </div>
+        </div>`;
+    }).join('');
+
+    // 圖表
+    const ctx = document.getElementById('erChart').getContext('2d');
+    if (erChartInst) erChartInst.destroy();
+    erChartInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true, position: 'top',
+            labels: { font: { size: 12 }, boxWidth: 24, padding: 14 },
+          },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            callbacks: {
+              title: items => items[0].label,
+              label: item => {
+                const v = item.parsed.y;
+                if (v === null) return null;
+                const netR = (grossR - parseFloat(item.dataset.label)).toFixed(2);
+                return `  ${item.dataset.label}（淨 ${netR}%）：${fmtMoneyFull(v * 10000)}`;
+              },
+              afterBody: items => {
+                if (sortedRates.length < 2) return [];
+                const idx = items[0].dataIndex;
+                const baseVal = base.pts[idx];
+                return items
+                  .filter(item => parseFloat(item.dataset.label) > base.rate)
+                  .map(item => {
+                    const diff = baseVal - item.parsed.y * 10000;
+                    if (diff <= 0) return null;
+                    return `  ↓ 較 ${base.rate}% 少了 ${fmtMoney(diff)}`;
+                  }).filter(Boolean);
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 11 }, maxTicksLimit: 12, autoSkip: true },
+          },
+          y: {
+            min: 0,
+            ticks: { font: { size: 11 }, callback: v => fmtMoney(v * 10000) },
+            grid: { color: 'rgba(0,0,0,0.06)' },
+          },
+        },
+      },
+    });
+
+    // 統計表格
+    const totalInvested = principal + annual * years;
+    let html = `
+      <div style="background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow-x:auto">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:4px">第 ${years} 年結算比較</h3>
+        <div style="font-size:12px;color:#aaa;margin-bottom:14px">
+          累積投入 ${fmtMoneyFull(totalInvested)}　假設毛報酬 ${grossR}%
+        </div>
+        <table class="sim-table">
+          <thead><tr>
+            <th style="text-align:left">費用率</th>
+            <th>淨年化報酬</th>
+            <th>最終資產</th>
+            <th>較最低費率少了</th>
+            <th>報酬被侵蝕</th>
+          </tr></thead>
+          <tbody>`;
+
+    sortedRates.forEach((s, i) => {
+      const finalMW  = Math.round(s.pts[years] / 10000).toLocaleString('zh-TW');
+      const netR     = (grossR - s.rate).toFixed(2);
+      const diff     = i === 0 ? 0 : baseFinal - s.pts[years];
+      const diffMW   = i === 0 ? '—' : `<span style="color:#e24b4a">− ${Math.round(diff / 10000).toLocaleString('zh-TW')} 萬</span>`;
+      const diffPct  = i === 0 ? '—' : `<span style="color:#e24b4a">${(diff / baseFinal * 100).toFixed(1)}%</span>`;
+      html += `<tr>
+        <td style="text-align:left">
+          <span style="display:inline-block;width:9px;height:9px;border-radius:50%;
+                        background:${s.color};margin-right:6px;vertical-align:middle"></span>
+          <strong>${s.rate}%</strong>　<span style="color:#888;font-size:12px">${s.label}</span>
+        </td>
+        <td style="text-align:center">${netR}%</td>
+        <td style="text-align:right;font-weight:600">${finalMW} 萬</td>
+        <td style="text-align:center">${diffMW}</td>
+        <td style="text-align:center">${diffPct}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    document.getElementById('erStats').innerHTML = html;
+  };
+
+  runExpenseRate();
+})();
+
+// ════════════════════════════════════════
+// 瀏覽次數計數器
+// ════════════════════════════════════════
+(function() {
+  fetch('https://api.counterapi.dev/v1/alvin5468-stock0050/pageviews/up')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('pageViewCount');
+      if (el && data.count != null) {
+        el.textContent = data.count.toLocaleString('zh-TW');
+      }
+    })
+    .catch(() => {});
 })();
 </script>
 </body>
