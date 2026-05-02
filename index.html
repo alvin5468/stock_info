@@ -18,12 +18,42 @@
        資料檔案 — 只需更新這裡
        新增標的時，加一行 <script src="data_xxx.js"> 即可
   ============================== -->
+  <script src="data_live.js"></script>
   <script src="data_0050.js"></script>
   <script src="data_vt.js"></script>
   <script src="data_spy.js"></script>
   <script src="analysis_data.js"></script>
 
   <style>
+    /* ════════════════════════════
+       即時行情區塊
+    ════════════════════════════ */
+    .live-bar {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 20px 24px;
+    }
+    .live-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .live-card {
+      flex: 1;
+      min-width: 160px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 16px 20px;
+      border: 1px solid #efefef;
+    }
+    .live-card .lc-label  { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .live-card .lc-value  { font-size: 22px; font-weight: 600; color: #1a1a1a; line-height: 1.2; }
+    .live-card .lc-sub    { font-size: 11px; color: #aaa; margin-top: 4px; }
+    .live-drop-pos { color: #e24b4a; }
+    .live-drop-neg { color: #10b981; }
+
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -70,16 +100,68 @@
       gap: 4px;
       margin-left: auto;
     }
+
+    /* 群組觸發按鈕 */
+    .nav-group { position: relative; }
+    .nav-group-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .nav-group-label:hover,
+    .nav-group.active .nav-group-label {
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+    }
+    .nav-group.active .nav-group-label { background: rgba(255,255,255,0.18); }
+    .nav-arrow { font-size: 9px; opacity: 0.5; }
+
+    /* 下拉選單 */
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      padding-top: 8px; /* 透明橋接，滑鼠不會在空隙斷開 */
+      min-width: 150px;
+      z-index: 200;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-dropdown::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 0; right: 0; bottom: 0;
+      background: #2a2a2a;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      z-index: -1;
+    }
+    .nav-dropdown .nav-link:first-child { margin-top: 6px; }
+    .nav-dropdown .nav-link:last-child  { margin-bottom: 6px; }
+    .nav-group:hover .nav-dropdown { display: flex; }
+
     .nav-link {
       font-size: 13px;
       color: rgba(255,255,255,0.6);
       text-decoration: none;
-      padding: 6px 14px;
+      padding: 7px 14px;
       border-radius: 6px;
       transition: all 0.15s;
+      white-space: nowrap;
     }
     .nav-link:hover  { color: #fff; background: rgba(255,255,255,0.1); }
-    .nav-link.active { color: #fff; background: rgba(255,255,255,0.18); }
+    .nav-link.active { color: #fff; background: rgba(255,255,255,0.15); }
 
     /* ════════════════════════════
        各區塊通用
@@ -154,8 +236,15 @@
     }
     .chart-container { position: relative; width: 100%; height: 420px; }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-    .stat-card { background: #fff; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    .stat-group { margin-bottom: 20px; }
+    .stat-group:last-child { margin-bottom: 0; }
+    .stat-group-title {
+      font-size: 11px; font-weight: 600; color: #aaa;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .stats-grid { display: flex; gap: 12px; }
+    .stat-card { flex: 1; background: #fff; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
     .stat-card .label { font-size: 12px; color: #888; margin-bottom: 6px; }
     .stat-card .value { font-size: 17px; font-weight: 500; color: #1a1a1a; }
 
@@ -200,7 +289,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 24px;
-      align-items: flex-end;
+      align-items: flex-start;
     }
     .sim-field { display: flex; flex-direction: column; gap: 6px; }
     .sim-field label { font-size: 12px; color: #888; }
@@ -475,19 +564,37 @@
   <span class="nav-logo">指數化投資分析</span>
   <div class="nav-views">已瀏覽 <span id="pageViewCount">—</span> 次</div>
   <div class="nav-links">
-    <a href="#sec-history"      class="nav-link active" data-section="sec-history">歷史表現</a>
-    <a href="#sec-yearly-updown" class="nav-link"    data-section="sec-yearly-updown">年度漲跌</a>
-    <a href="#sec-missing-days"  class="nav-link"    data-section="sec-missing-days">錯過最佳交易日</a>
-    <a href="#sec-comparison"    class="nav-link"    data-section="sec-comparison">成分股分析</a>
-    <a href="#sec-simulator"     class="nav-link"    data-section="sec-simulator">投資試算</a>
-    <a href="#sec-rolling"       class="nav-link"    data-section="sec-rolling">滾動報酬</a>
-    <a href="#sec-lumpsum"       class="nav-link"    data-section="sec-lumpsum">歷史試算</a>
-    <a href="#sec-dca"           class="nav-link"    data-section="sec-dca">定期定額回測</a>
-    <a href="#sec-alloc"         class="nav-link"    data-section="sec-alloc">股債配置</a>
-    <a href="#sec-withdrawal"    class="nav-link"    data-section="sec-withdrawal">提領法則</a>
-    <a href="#sec-expenserate"   class="nav-link"    data-section="sec-expenserate">費用率</a>
+    <div class="nav-group">
+      <button class="nav-group-label">報酬分析 <span class="nav-arrow">▾</span></button>
+      <div class="nav-dropdown">
+        <a href="#sec-history"       class="nav-link active" data-section="sec-history">歷史表現</a>
+        <a href="#sec-yearly-updown" class="nav-link"        data-section="sec-yearly-updown">年度漲跌</a>
+        <a href="#sec-rolling"       class="nav-link"        data-section="sec-rolling">滾動報酬</a>
+        <a href="#sec-missing-days"  class="nav-link"        data-section="sec-missing-days">錯過最佳交易日</a>
+        <a href="#sec-comparison"    class="nav-link"        data-section="sec-comparison">成分股分析</a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <button class="nav-group-label">試算工具 <span class="nav-arrow">▾</span></button>
+      <div class="nav-dropdown">
+        <a href="#sec-simulator" class="nav-link" data-section="sec-simulator">投資試算</a>
+        <a href="#sec-lumpsum"   class="nav-link" data-section="sec-lumpsum">歷史試算</a>
+        <a href="#sec-dca"       class="nav-link" data-section="sec-dca">定期定額回測</a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <button class="nav-group-label">資產規劃 <span class="nav-arrow">▾</span></button>
+      <div class="nav-dropdown">
+        <a href="#sec-alloc"       class="nav-link" data-section="sec-alloc">股債配置</a>
+        <a href="#sec-withdrawal"  class="nav-link" data-section="sec-withdrawal">提領法則</a>
+        <a href="#sec-expenserate" class="nav-link" data-section="sec-expenserate">費用率</a>
+      </div>
+    </div>
   </div>
 </nav>
+
+<!-- 即時行情 -->
+<div class="live-bar" id="liveBar"></div>
 
 <!-- ════════════════════════════════════════
      Section 1：歷史表現
@@ -524,7 +631,7 @@
       </div>
     </div>
 
-    <div class="stats-grid" id="statsGrid"></div>
+    <div id="statsGrid"></div>
 
     <div class="return-stats-table" id="returnStatsTable"></div>
 
@@ -551,18 +658,24 @@
       <canvas id="ydBarChart"></canvas>
     </div>
 
-    <div class="yd-bar-box">
-      <h4>上漲比例堆疊比較</h4>
-      <canvas id="ydStackBar"></canvas>
-    </div>
-
     <div class="yd-heat-box">
-      <h4>年度漲跌對照表</h4>
-      <table class="yd-table" id="ydHeatTable"></table>
-      <div class="yd-legend">
-        <span><i class="yd-dot" style="background:#fef2f2;border:1px solid #fca5a5"></i> 上漲</span>
-        <span><i class="yd-dot" style="background:#f0fdf4;border:1px solid #86efac"></i> 下跌</span>
-        <span><i class="yd-dot" style="background:#f5f5f5;border:1px solid #e0e0e0"></i> 無資料</span>
+      <h4 id="ydHeatToggle" onclick="(function(){
+        const body = document.getElementById('ydHeatBody');
+        const arrow = document.getElementById('ydHeatArrow');
+        const open = body.style.display === 'none';
+        body.style.display = open ? '' : 'none';
+        arrow.textContent = open ? '▼' : '▶';
+      })()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none">
+        年度漲跌對照表
+        <span id="ydHeatArrow" style="font-size:11px;color:#aaa">▶</span>
+      </h4>
+      <div id="ydHeatBody" style="display:none">
+        <table class="yd-table" id="ydHeatTable"></table>
+        <div class="yd-legend">
+          <span><i class="yd-dot" style="background:#fef2f2;border:1px solid #fca5a5"></i> 上漲</span>
+          <span><i class="yd-dot" style="background:#f0fdf4;border:1px solid #86efac"></i> 下跌</span>
+          <span><i class="yd-dot" style="background:#f5f5f5;border:1px solid #e0e0e0"></i> 無資料</span>
+        </div>
       </div>
     </div>
   </div>
@@ -697,13 +810,26 @@
       <span class="section-sub">N 年滾動年化報酬率（CAGR）— 以年度收盤價計算</span>
     </div>
 
-    <div class="rr-window-tabs" id="rollingWindowTabs">
-      <button class="asset-tab active" data-window="1">1 年滾動</button>
-      <button class="asset-tab" data-window="3">3 年滾動</button>
-      <button class="asset-tab" data-window="5">5 年滾動</button>
-      <button class="asset-tab" data-window="10">10 年滾動</button>
-      <button class="asset-tab" data-window="15">15 年滾動</button>
-      <button class="asset-tab" data-window="20">20 年滾動</button>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;color:#555;white-space:nowrap">起始年份</label>
+        <select id="rollingStartYear" style="font-size:13px;padding:5px 10px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer"></select>
+      </div>
+      <div class="rr-window-tabs" id="rollingWindowTabs" style="margin-bottom:0">
+        <button class="asset-tab active" data-window="1">1 年滾動</button>
+        <button class="asset-tab" data-window="3">3 年滾動</button>
+        <button class="asset-tab" data-window="5">5 年滾動</button>
+        <button class="asset-tab" data-window="10">10 年滾動</button>
+        <button class="asset-tab" data-window="15">15 年滾動</button>
+        <button class="asset-tab" data-window="20">20 年滾動</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#555;cursor:pointer;user-select:none">
+        <input type="checkbox" id="rrDivToggle" style="cursor:pointer;width:14px;height:14px"> 含股利再投入
+      </label>
+      <div id="rrDivInputs" style="display:none;align-items:center;gap:16px;flex-wrap:wrap"></div>
     </div>
 
     <div class="chart-wrap">
@@ -715,6 +841,21 @@
     <div id="rollingStats" style="margin-top:16px"></div>
 
     <p class="data-note">X 軸為滾動區間結束年份；1 年滾動即年度報酬率，N &gt; 1 顯示年化複合報酬率（CAGR）</p>
+
+    <!-- 持有時間與風險 -->
+    <div style="margin-top:36px;padding-top:28px;border-top:1px solid #e8e8e8">
+      <div class="section-header" style="margin-bottom:20px">
+        <h3 style="font-size:16px;font-weight:600;color:#1a1a1a">持有時間與風險</h3>
+        <span class="section-sub">持有越長，報酬率範圍越窄、正報酬機率越高</span>
+      </div>
+      <div class="asset-tabs" id="rangeAssetTabs" style="margin-bottom:16px"></div>
+      <div class="chart-wrap">
+        <div class="chart-container" style="height:380px">
+          <canvas id="rangeChart"></canvas>
+        </div>
+      </div>
+      <div id="rangeTable" style="margin-top:16px"></div>
+    </div>
   </div>
 </section>
 
@@ -997,6 +1138,41 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 // ════════════════════════════════════════
+// 即時行情區塊
+// ════════════════════════════════════════
+(function initLiveBar() {
+  const el = document.getElementById('liveBar');
+  if (!el || typeof DATA_LIVE === 'undefined') return;
+
+  const d = DATA_LIVE;
+  const dropCls  = d.dropFromAth >= 0 ? 'live-drop-pos' : 'live-drop-neg';
+  const dropSign = d.dropFromAth >= 0 ? '+' : '';
+  const fmt = n => n.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  el.innerHTML = `
+    <div class="live-inner">
+      <div class="live-card">
+        <div class="lc-label">台股加權指數（TAIEX）歷史最高點</div>
+        <div class="lc-value">${fmt(d.ath)}</div>
+        <div class="lc-sub">${d.athDate}</div>
+      </div>
+      <div class="live-card">
+        <div class="lc-label">目前指數</div>
+        <div class="lc-value">${fmt(d.current)}</div>
+        <div class="lc-sub">${d.currentDate}</div>
+      </div>
+      <div class="live-card">
+        <div class="lc-label">距歷史最高點</div>
+        <div class="lc-value ${dropCls}">${dropSign}${d.dropFromAth}%</div>
+        <div class="lc-sub">相差 ${fmt(Math.abs(d.current - d.ath))} 點</div>
+      </div>
+      <div class="live-card" style="flex:0;min-width:auto;background:none;border:none;display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="lc-sub" style="text-align:right">資料更新：${d.updatedAt}</div>
+      </div>
+    </div>`;
+})();
+
+// ════════════════════════════════════════
 // 導覽列：Intersection Observer 自動高亮
 // ════════════════════════════════════════
 (function initNav() {
@@ -1009,6 +1185,9 @@
         const id = entry.target.id;
         navLinks.forEach(a => {
           a.classList.toggle('active', a.dataset.section === id);
+        });
+        document.querySelectorAll('.nav-group').forEach(g => {
+          g.classList.toggle('active', !!g.querySelector('.nav-link.active'));
         });
       }
     });
@@ -1030,6 +1209,10 @@ if (typeof DATA_0050 !== 'undefined') { DATASETS['0050'] = DATA_0050; ASSET_KEYS
 if (typeof DATA_VT   !== 'undefined') { DATASETS['VT']   = DATA_VT;   ASSET_KEYS.push('VT');   }
 if (typeof DATA_VOO  !== 'undefined') { DATASETS['VOO']  = DATA_VOO;  ASSET_KEYS.push('VOO');  }
 if (typeof DATA_SPY  !== 'undefined') { DATASETS['SPY']  = DATA_SPY;  ASSET_KEYS.push('SPY');  }
+
+// 股利再投入狀態（供滾動報酬區塊共用）
+let rrDivEnabled = false;
+const rrDivYields = { '0050': 2, 'VT': 1, 'SPY': 1, 'VOO': 1 };
 
 let currentAsset = ASSET_KEYS[0];
 let chartInst = null;
@@ -1182,26 +1365,48 @@ function updateChart() {
   const bestYear  = rows.reduce((a, b) => b.ret > a.ret ? b : a);
   const worstYear = rows.reduce((a, b) => b.ret < a.ret ? b : a);
 
-  const stats = [
-    { label: '總年數',           value: rows.length + ' 年' },
-    { label: '平均年報酬',       value: (avgRet > 0 ? '+' : '') + avgRet + '%' },
-    { label: '上漲年數',         value: `${posYears} / ${rows.length}` },
-    { label: '最佳年份',         value: `${bestYear.year}（+${bestYear.ret.toFixed(1)}%）` },
-    { label: '最差年份',         value: `${worstYear.year}（${worstYear.ret.toFixed(1)}%）` },
-    { label: '年度跌幅 > 5%',   value: `${r5} 年（${pct(r5)}%）` },
-    { label: '年度跌幅 > 10%',  value: `${r10} 年（${pct(r10)}%）` },
-    { label: '年度跌幅 > 15%',  value: `${r15} 年（${pct(r15)}%）` },
-    { label: '年度跌幅 > 20%',  value: `${r20} 年（${pct(r20)}%）` },
-    { label: '年中跌幅 > 5%',   value: `${c5} 年（${pct(c5)}%）` },
-    { label: '年中跌幅 > 10%',  value: `${c10} 年（${pct(c10)}%）` },
-    { label: '年中跌幅 > 15%',  value: `${c15} 年（${pct(c15)}%）` },
-    { label: '年中跌幅 > 20%',  value: `${c20} 年（${pct(c20)}%）` },
+  const statGroups = [
+    {
+      title: '報酬概況',
+      items: [
+        { label: '總年數',     value: rows.length + ' 年' },
+        { label: '平均年報酬', value: (avgRet > 0 ? '+' : '') + avgRet + '%' },
+        { label: '上漲年數',   value: `${posYears} / ${rows.length}` },
+        { label: '最佳年份',   value: `${bestYear.year}（+${bestYear.ret.toFixed(1)}%）` },
+        { label: '最差年份',   value: `${worstYear.year}（${worstYear.ret.toFixed(1)}%）` },
+      ]
+    },
+    {
+      title: '年度跌幅',
+      items: [
+        { label: '> 5%',  value: `${r5} 年（${pct(r5)}%）` },
+        { label: '> 10%', value: `${r10} 年（${pct(r10)}%）` },
+        { label: '> 15%', value: `${r15} 年（${pct(r15)}%）` },
+        { label: '> 20%', value: `${r20} 年（${pct(r20)}%）` },
+      ]
+    },
+    {
+      title: '年中跌幅',
+      items: [
+        { label: '> 5%',  value: `${c5} 年（${pct(c5)}%）` },
+        { label: '> 10%', value: `${c10} 年（${pct(c10)}%）` },
+        { label: '> 15%', value: `${c15} 年（${pct(c15)}%）` },
+        { label: '> 20%', value: `${c20} 年（${pct(c20)}%）` },
+      ]
+    },
   ];
 
-  document.getElementById('statsGrid').innerHTML = stats.map(s => `
-    <div class="stat-card">
-      <div class="label">${s.label}</div>
-      <div class="value">${s.value}</div>
+  document.getElementById('statsGrid').innerHTML = statGroups.map(group => `
+    <div class="stat-group">
+      <div class="stat-group-title">${group.title}</div>
+      <div class="stats-grid">
+        ${group.items.map(s => `
+          <div class="stat-card">
+            <div class="label">${s.label}</div>
+            <div class="value">${s.value}</div>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `).join('');
 
@@ -2014,6 +2219,30 @@ runSimulator();
         { rank: 10, date: '2022-11-09', ret: 2.18 },
       ],
     },
+    2023: {
+      year: 2023, totalDays: 239,
+      startIndex: 14224.12, endIndex: 17930.81,
+      summary: [
+        { miss:  0, ret:  26.06 }, { miss:  1, ret:  21.50 },
+        { miss:  2, ret:  18.38 }, { miss:  3, ret:  15.79 },
+        { miss:  4, ret:  13.96 }, { miss:  5, ret:  12.17 },
+        { miss:  6, ret:  10.47 }, { miss:  7, ret:   8.81 },
+        { miss:  8, ret:   7.23 }, { miss:  9, ret:   5.74 },
+        { miss: 10, ret:   4.32 },
+      ],
+      top10: [
+        { rank:  1, date: '2023-01-30', ret: 3.76 },
+        { rank:  2, date: '2023-01-09', ret: 2.64 },
+        { rank:  3, date: '2023-11-02', ret: 2.23 },
+        { rank:  4, date: '2023-05-17', ret: 1.60 },
+        { rank:  5, date: '2023-03-22', ret: 1.59 },
+        { rank:  6, date: '2023-06-13', ret: 1.54 },
+        { rank:  7, date: '2023-03-17', ret: 1.52 },
+        { rank:  8, date: '2023-07-11', ret: 1.48 },
+        { rank:  9, date: '2023-02-08', ret: 1.41 },
+        { rank: 10, date: '2023-09-14', ret: 1.36 },
+      ],
+    },
   };
 
   let mdChart = null;
@@ -2166,7 +2395,7 @@ runSimulator();
   // 年份切換 Tab
   const tabsEl = document.getElementById('mdYearTabs');
   if (tabsEl) {
-    [2025, 2024, 2022].forEach(y => {
+    [2025, 2024, 2023, 2022].forEach(y => {
       const btn = document.createElement('button');
       btn.className = 'asset-tab' + (y === currentMdYear ? ' active' : '');
       btn.textContent = `${y} 年`;
@@ -2952,15 +3181,18 @@ function calcIRR(principal, annual, holdYears, finalValue) {
   };
 
   let rrChartInst = null;
+  let rrStartYear = null;
 
-  function calcRolling(data, windowYears) {
+  function calcRolling(data, windowYears, divYieldPct = 0) {
     const results = [];
     for (let i = windowYears; i < data.length; i++) {
-      const startClose = data[i - windowYears].c;
-      const endClose   = data[i].c;
+      let totalGrowth = 1;
+      for (let j = i - windowYears + 1; j <= i; j++) {
+        totalGrowth *= (1 + (data[j].c / data[j-1].c - 1) + divYieldPct / 100);
+      }
       const cagr = windowYears === 1
-        ? (endClose / startClose - 1) * 100
-        : (Math.pow(endClose / startClose, 1 / windowYears) - 1) * 100;
+        ? (totalGrowth - 1) * 100
+        : (Math.pow(totalGrowth, 1 / windowYears) - 1) * 100;
       results.push({ endYear: data[i].y, startYear: data[i - windowYears].y, cagr: +cagr.toFixed(2) });
     }
     return results;
@@ -2975,9 +3207,10 @@ function calcIRR(principal, annual, holdYears, finalValue) {
     const allYearsSet = new Set();
 
     ASSET_KEYS.forEach(key => {
-      const data = DATASETS[key].data;
+      const data = DATASETS[key].data.filter(d => d.y >= rrStartYear);
       if (data.length <= windowYears) return;
-      const returns = calcRolling(data, windowYears);
+      const divYield = rrDivEnabled ? (rrDivYields[key] ?? 0) : 0;
+      const returns = calcRolling(data, windowYears, divYield);
       seriesData[key] = returns;
       returns.forEach(r => allYearsSet.add(r.endYear));
     });
@@ -3045,7 +3278,7 @@ function calcIRR(principal, annual, holdYears, finalValue) {
                 const yr = parseInt(items[0].label);
                 return windowYears === 1
                   ? `${yr} 年度報酬率`
-                  : `${yr - windowYears} → ${yr} 年（${windowYears} 年 CAGR）`;
+                  : `${yr - windowYears} → ${yr} 年（持有 ${windowYears} 年 年化報酬）`;
               },
               label: item => {
                 if (item.parsed.y === null) return null;
@@ -3122,10 +3355,249 @@ function calcIRR(principal, annual, holdYears, finalValue) {
     document.getElementById('rollingStats').innerHTML = html;
   }
 
+  // 股利再投入控制
+  const divToggle   = document.getElementById('rrDivToggle');
+  const divInputsEl = document.getElementById('rrDivInputs');
+
+  ASSET_KEYS.forEach(key => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:13px;color:#555';
+    wrap.innerHTML = `<span>${key}</span>
+      <input type="number" id="rrDiv_${key}" value="${rrDivYields[key] ?? 1}" min="0" max="20" step="0.1"
+        style="width:65px;font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;outline:none">
+      <span>%</span>`;
+    divInputsEl.appendChild(wrap);
+    wrap.querySelector('input').addEventListener('change', e => {
+      rrDivYields[key] = parseFloat(e.target.value) || 0;
+      if (!rrDivEnabled) return;
+      const w = parseInt(document.querySelector('#rollingWindowTabs .asset-tab.active').dataset.window);
+      buildRollingChart(w);
+      if (window._rebuildRangeChart) {
+        window._rebuildRangeChart(document.querySelector('#rangeAssetTabs .asset-tab.active')?.dataset.key || ASSET_KEYS[0]);
+      }
+    });
+  });
+
+  divToggle.addEventListener('change', () => {
+    rrDivEnabled = divToggle.checked;
+    divInputsEl.style.display = rrDivEnabled ? 'flex' : 'none';
+    const w = parseInt(document.querySelector('#rollingWindowTabs .asset-tab.active').dataset.window);
+    buildRollingChart(w);
+    if (window._rebuildRangeChart) {
+      window._rebuildRangeChart(document.querySelector('#rangeAssetTabs .asset-tab.active')?.dataset.key || ASSET_KEYS[0]);
+    }
+  });
+
+  // 填充起始年份選單
+  const allDataYears = [];
+  ASSET_KEYS.forEach(key => DATASETS[key].data.forEach(d => allDataYears.push(d.y)));
+  const minYear = Math.min(...allDataYears);
+  const maxYear = Math.max(...allDataYears);
+  rrStartYear = minYear;
+
+  const startYearSel = document.getElementById('rollingStartYear');
+  for (let y = minYear; y < maxYear; y++) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y + ' 年';
+    startYearSel.appendChild(opt);
+  }
+
   buildRollingChart(1);
 
   document.querySelectorAll('#rollingWindowTabs .asset-tab').forEach(btn => {
     btn.addEventListener('click', () => buildRollingChart(parseInt(btn.dataset.window)));
+  });
+
+  startYearSel.addEventListener('change', () => {
+    rrStartYear = parseInt(startYearSel.value);
+    const activeWindow = parseInt(document.querySelector('#rollingWindowTabs .asset-tab.active').dataset.window);
+    buildRollingChart(activeWindow);
+  });
+})();
+
+// ════════════════════════════════════════
+// 持有時間與風險（Rolling Range Chart）
+// ════════════════════════════════════════
+(function initRollingRange() {
+  const WINDOWS = [1, 3, 5, 10, 15, 20];
+  const RANGE_COLORS = {
+    '0050': { bar: 'rgba(80,80,80,0.15)',    barBorder: 'rgba(80,80,80,0.5)',    line: '#1a1a1a' },
+    'VT':   { bar: 'rgba(59,130,246,0.15)',  barBorder: 'rgba(59,130,246,0.5)',  line: '#3b82f6' },
+    'SPY':  { bar: 'rgba(248,113,113,0.15)', barBorder: 'rgba(248,113,113,0.5)', line: '#f87171' },
+    'VOO':  { bar: 'rgba(168,85,247,0.15)',  barBorder: 'rgba(168,85,247,0.5)',  line: '#a855f7' },
+  };
+
+  function calcValues(data, w, divYieldPct = 0) {
+    const out = [];
+    for (let i = w; i < data.length; i++) {
+      let totalGrowth = 1;
+      for (let j = i - w + 1; j <= i; j++) {
+        totalGrowth *= (1 + (data[j].c / data[j-1].c - 1) + divYieldPct / 100);
+      }
+      const cagr = w === 1
+        ? (totalGrowth - 1) * 100
+        : (Math.pow(totalGrowth, 1 / w) - 1) * 100;
+      out.push(+cagr.toFixed(2));
+    }
+    return out;
+  }
+
+  function median(arr) {
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m-1] + s[m]) / 2 : s[m];
+  }
+
+  // 建立 asset tabs
+  const tabsEl = document.getElementById('rangeAssetTabs');
+  ASSET_KEYS.forEach((key, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'asset-tab' + (i === 0 ? ' active' : '');
+    btn.dataset.key = key;
+    btn.textContent = `${key}　${DATASETS[key].label}`;
+    tabsEl.appendChild(btn);
+  });
+
+  let chartInst = null;
+
+  function build(assetKey) {
+    document.querySelectorAll('#rangeAssetTabs .asset-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.key === assetKey);
+    });
+
+    const assetData = DATASETS[assetKey].data;
+    const c = RANGE_COLORS[assetKey] ?? { bar: 'rgba(128,128,128,0.15)', barBorder: 'rgba(128,128,128,0.5)', line: '#888' };
+
+    const stats = WINDOWS.map(w => {
+      if (assetData.length <= w) return null;
+      const divYield = rrDivEnabled ? (rrDivYields[assetKey] ?? 0) : 0;
+      const vals = calcValues(assetData, w, divYield);
+      if (!vals.length) return null;
+      return {
+        w,
+        min: +Math.min(...vals).toFixed(1),
+        max: +Math.max(...vals).toFixed(1),
+        med: +median(vals).toFixed(1),
+        posRate: Math.round(vals.filter(v => v > 0).length / vals.length * 100),
+        count: vals.length,
+      };
+    }).filter(Boolean);
+
+    const zeroPlugin = {
+      id: 'rangeZeroLine',
+      afterDraw({ ctx: cx, scales: { y }, chartArea }) {
+        const yPos = y.getPixelForValue(0);
+        if (yPos < chartArea.top || yPos > chartArea.bottom) return;
+        cx.save();
+        cx.beginPath();
+        cx.strokeStyle = 'rgba(0,0,0,0.25)';
+        cx.lineWidth = 1.5;
+        cx.setLineDash([4, 3]);
+        cx.moveTo(chartArea.left, yPos);
+        cx.lineTo(chartArea.right, yPos);
+        cx.stroke();
+        cx.setLineDash([]);
+        cx.restore();
+      }
+    };
+
+    const canvasCtx = document.getElementById('rangeChart').getContext('2d');
+    if (chartInst) chartInst.destroy();
+
+    chartInst = new Chart(canvasCtx, {
+      data: {
+        labels: stats.map(s => `${s.w} 年`),
+        datasets: [
+          {
+            type: 'bar',
+            label: '報酬率範圍（最差 ～ 最佳）',
+            data: stats.map(s => [s.min, s.max]),
+            backgroundColor: c.bar,
+            borderColor: c.barBorder,
+            borderWidth: 1.5,
+            borderSkipped: false,
+            borderRadius: 4,
+            barPercentage: 0.45,
+          },
+          {
+            type: 'line',
+            label: '中位數',
+            data: stats.map(s => s.med),
+            borderColor: c.line,
+            backgroundColor: c.line,
+            borderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            tension: 0.3,
+          }
+        ]
+      },
+      plugins: [zeroPlugin],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 20, padding: 16 } },
+          tooltip: {
+            backgroundColor: 'rgba(255,255,255,0.97)',
+            borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#111', bodyColor: '#333', padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: items => {
+                const s = stats[items[0].dataIndex];
+                return `持有 ${items[0].label}　共 ${s.count} 個樣本`;
+              },
+              label: item => {
+                const s = stats[item.dataIndex];
+                if (item.datasetIndex === 0) return [
+                  `最差年化報酬：${s.min >= 0 ? '+' : ''}${s.min}%`,
+                  `最佳年化報酬：+${s.max}%`,
+                ];
+                return `中位數：${s.med >= 0 ? '+' : ''}${s.med}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+          y: {
+            ticks: { font: { size: 11 }, callback: v => (v >= 0 ? '+' : '') + v + '%' },
+            grid: { color: 'rgba(0,0,0,0.07)' }
+          }
+        }
+      }
+    });
+
+    const td = (content, extra = '') => `<td style="padding:8px 14px;border-bottom:1px solid #f0f0f0;text-align:center;${extra}">${content}</td>`;
+    const rows = stats.map(s => `<tr>
+      ${td(s.w + ' 年', 'text-align:left;font-weight:600;color:#333')}
+      ${td(s.count, 'color:#aaa')}
+      ${td((s.min >= 0 ? '+' : '') + s.min + '%', 'color:#10b981')}
+      ${td((s.med >= 0 ? '+' : '') + s.med + '%')}
+      ${td('+' + s.max + '%', 'color:#e24b4a')}
+      ${td(s.posRate + '%', 'font-weight:500')}
+    </tr>`).join('');
+
+    const th = t => `<th style="padding:8px 14px;font-weight:500;color:#555;text-align:center">${t}</th>`;
+    document.getElementById('rangeTable').innerHTML = `
+      <div class="return-stats-table">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:2px solid #e0e0e0">
+            <th style="padding:8px 14px;font-weight:500;color:#555;text-align:left">持有年數</th>
+            ${th('樣本數')}${th('最差年化報酬')}${th('中位數')}${th('最佳年化報酬')}${th('正報酬機率')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  build(ASSET_KEYS[0]);
+  window._rebuildRangeChart = build;
+
+  document.querySelectorAll('#rangeAssetTabs .asset-tab').forEach(btn => {
+    btn.addEventListener('click', () => build(btn.dataset.key));
   });
 })();
 
@@ -3240,32 +3712,6 @@ function calcIRR(principal, annual, holdYears, finalValue) {
     }
   });
 
-  // 堆疊比例圖
-  new Chart(document.getElementById('ydStackBar'), {
-    type: 'bar',
-    data: {
-      labels: stats.map(s => s.label),
-      datasets: [
-        { label: '上漲比例', data: stats.map(s => parseFloat(s.upPct)),   backgroundColor: YD_UP   },
-        { label: '下跌比例', data: stats.map(s => parseFloat(s.downPct)), backgroundColor: YD_DOWN },
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { font: { size: 12 } } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}：${ctx.parsed.y.toFixed(1)}%` } }
-      },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: {
-          stacked: true, max: 100,
-          ticks: { font: { size: 11 }, callback: v => v + '%' },
-          grid: { color: 'rgba(0,0,0,0.06)' }
-        }
-      }
-    }
-  });
 
   // 年度熱力格
   const allYears = [...new Set(SOURCES.flatMap(s => s.data.map(d => d.y)))].sort((a, b) => a - b);

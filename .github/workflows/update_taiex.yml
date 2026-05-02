@@ -1,0 +1,36 @@
+name: 更新 TAIEX 即時行情
+
+on:
+  schedule:
+    # 台灣盤中每小時：9:00~14:00 (UTC 01:00~06:00)，週一至週五
+    - cron: '0 1-6 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run update script
+        run: python scripts/update_taiex.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data_live.js
+          git diff --staged --quiet || git commit -m 'chore: 更新 TAIEX 即時行情'
+          git push
