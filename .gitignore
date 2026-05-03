@@ -1,0 +1,9 @@
+.DS_Store
+*.png
+ppt/
+tw_stock/
+index_public.html
+index_full.html
+筆記_*.md
+yearly_updown.html
+__pycache__/
