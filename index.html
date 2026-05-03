@@ -652,12 +652,14 @@
   const t = d.taiex || {};
   const v = d.vt    || {};
 
-  const athBanner = (isAthToday(t) || isAthToday(v))
-    ? `<div class="ath-banner"><div class="ath-dot"></div>今天股價盤中創新高</div>`
-    : '';
+  function athBanner(asset, label) {
+    if (!isAthToday(asset)) return '';
+    return `<div class="ath-banner"><div class="ath-dot"></div>${label} 今日盤中創新高</div>`;
+  }
 
   const tSection = `
     <div class="live-section">
+      ${athBanner(t, '台股加權指數 TAIEX')}
       <div class="live-section-title">台股加權指數 TAIEX ${ytdBadge(t)}</div>
       <div class="live-group">
         <div class="live-card">
@@ -678,6 +680,7 @@
   const vSection = `
     <div class="live-divider"></div>
     <div class="live-section">
+      ${athBanner(v, 'VT 全球股票 ETF')}
       <div class="live-section-title">VT 全球股票 ETF ${ytdBadge(v)}</div>
       <div class="live-group">
         <div class="live-card">
@@ -697,7 +700,6 @@
 
   el.innerHTML = `
     <div class="live-inner">
-      ${athBanner}
       ${tSection}
       ${vSection}
       <div style="text-align:right">
