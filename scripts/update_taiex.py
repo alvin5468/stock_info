@@ -75,6 +75,10 @@ def read_stored():
         m = re.search(rf'{key}:\s*([-\d.]+)', text)
         return float(m.group(1)) if m else 0.0
 
+    def val_i(text, key):
+        m = re.search(rf'{key}:\s*(\d+)', text)
+        return int(m.group(1)) if m else 0
+
     def val_s(text, key):
         m = re.search(rf"{key}:\s*'([^']*)'", text)
         return m.group(1) if m else ''
@@ -86,10 +90,12 @@ def read_stored():
         'taiex': {
             'current': val_f(tx, 'current'), 'currentDate': val_s(tx, 'currentDate'),
             'ath': val_f(tx, 'ath'), 'athDate': val_s(tx, 'athDate'),
+            'athYtdCount': val_i(tx, 'athYtdCount'), 'athYtdYear': val_i(tx, 'athYtdYear'),
         },
         'vt': {
             'current': val_f(vx, 'current'), 'currentDate': val_s(vx, 'currentDate'),
             'ath': val_f(vx, 'ath'), 'athDate': val_s(vx, 'athDate'),
+            'athYtdCount': val_i(vx, 'athYtdCount'), 'athYtdYear': val_i(vx, 'athYtdYear'),
         },
     }
 
@@ -103,6 +109,8 @@ def write_live(taiex, vt):
     ath: {taiex['ath']},
     athDate: '{taiex['athDate']}',
     dropFromAth: {taiex['dropFromAth']},
+    athYtdCount: {taiex['athYtdCount']},
+    athYtdYear: {taiex['athYtdYear']},
   }},
   vt: {{
     current: {vt['current']},
@@ -110,6 +118,8 @@ def write_live(taiex, vt):
     ath: {vt['ath']},
     athDate: '{vt['athDate']}',
     dropFromAth: {vt['dropFromAth']},
+    athYtdCount: {vt['athYtdCount']},
+    athYtdYear: {vt['athYtdYear']},
   }},
   updatedAt: '{updated_at}',
 }};
@@ -123,6 +133,17 @@ def write_live(taiex, vt):
 def main():
     stored = read_stored()
 
+    this_year = datetime.now(TW_TZ).year
+
+    def update_ytd_count(stored_data, new_ath_date, old_ath_date):
+        count = stored_data['athYtdCount']
+        year  = stored_data['athYtdYear']
+        if year != this_year:
+            count, year = 0, this_year
+        if new_ath_date != old_ath_date:
+            count += 1
+        return count, year
+
     # ── TAIEX ──
     t_date, t_close, t_high = fetch_taiex_today()
     if t_close is None:
@@ -131,6 +152,7 @@ def main():
         t_date     = stored['taiex']['currentDate']
         t_ath      = stored['taiex']['ath']
         t_ath_date = stored['taiex']['athDate']
+        t_ytd_count, t_ytd_year = stored['taiex']['athYtdCount'], stored['taiex']['athYtdYear']
     else:
         print(f'TAIEX 今日 {t_date}  收盤 {t_close}  最高 {t_high}')
         t_ath      = stored['taiex']['ath']
@@ -138,6 +160,7 @@ def main():
         if t_high > t_ath:
             t_ath, t_ath_date = t_high, t_date
             print(f'TAIEX 新 ATH！{t_ath} @ {t_ath_date}')
+        t_ytd_count, t_ytd_year = update_ytd_count(stored['taiex'], t_ath_date, stored['taiex']['athDate'])
 
     # ── VT ──
     v_date, v_close, v_high, v_hist_ath, v_hist_ath_date = fetch_vt()
@@ -147,21 +170,22 @@ def main():
         v_date     = stored['vt']['currentDate']
         v_ath      = stored['vt']['ath']
         v_ath_date = stored['vt']['athDate']
+        v_ytd_count, v_ytd_year = stored['vt']['athYtdCount'], stored['vt']['athYtdYear']
     else:
         print(f'VT 最新 {v_date}  收盤 {v_close}  最高 {v_high}  歷史ATH {v_hist_ath} @ {v_hist_ath_date}')
-        # 以 yfinance 歷史最高為準，再和今日最高比較
         v_ath      = v_hist_ath
         v_ath_date = v_hist_ath_date
         if v_high > v_ath:
             v_ath, v_ath_date = v_high, v_date
             print(f'VT 新 ATH！{v_ath} @ {v_ath_date}')
+        v_ytd_count, v_ytd_year = update_ytd_count(stored['vt'], v_ath_date, stored['vt']['athDate'])
 
     t_drop = round((t_close - t_ath) / t_ath * 100, 2) if t_ath and t_close else 0
     v_drop = round((v_close - v_ath) / v_ath * 100, 2) if v_ath and v_close else 0
 
     write_live(
-        taiex={'current': t_close, 'currentDate': t_date, 'ath': t_ath, 'athDate': t_ath_date, 'dropFromAth': t_drop},
-        vt=   {'current': v_close, 'currentDate': v_date, 'ath': v_ath, 'athDate': v_ath_date, 'dropFromAth': v_drop},
+        taiex={'current': t_close, 'currentDate': t_date, 'ath': t_ath, 'athDate': t_ath_date, 'dropFromAth': t_drop, 'athYtdCount': t_ytd_count, 'athYtdYear': t_ytd_year},
+        vt=   {'current': v_close, 'currentDate': v_date, 'ath': v_ath, 'athDate': v_ath_date, 'dropFromAth': v_drop, 'athYtdCount': v_ytd_count, 'athYtdYear': v_ytd_year},
     )
     print('data_live.js 已更新')
 

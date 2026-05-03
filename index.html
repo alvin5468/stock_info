@@ -124,6 +124,23 @@
     .live-card.ath-card .lc-label { color: #e24b4a; }
     .live-card.ath-card .lc-value { color: #e24b4a; font-size: 20px; }
     .dd-pointer.ath-pointer { background: #e24b4a; width: 4px; }
+    .ath-ytd-badge {
+      font-size: 11px; font-weight: 600;
+      background: #fff1f1; color: #e24b4a;
+      border: 1px solid #fca5a5; border-radius: 20px;
+      padding: 2px 10px; letter-spacing: 0; text-transform: none;
+    }
+    .ath-banner {
+      display: flex; align-items: center; gap: 8px;
+      background: #fff1f1; border: 1px solid #fca5a5;
+      border-radius: 8px; padding: 10px 16px; margin-bottom: 4px;
+      color: #e24b4a; font-size: 14px; font-weight: 600;
+    }
+    .ath-dot {
+      width: 8px; height: 8px; background: #e24b4a;
+      border-radius: 50%; animation: athPulse 1.2s ease-in-out infinite;
+    }
+    @keyframes athPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -585,15 +602,14 @@
   const DD_MAX   = 25;
   const DD_TICKS = [0, 5, 10, 15, 20, 25];
 
-  function drawdownBar(dropPct) {
-    const isAth  = dropPct >= 0;
+  function drawdownBar(dropPct, isAth = false) {
     const drop   = Math.abs(Math.min(dropPct, 0));
     const posPct = Math.min(drop / DD_MAX * 100, 100);
     const nearTick = DD_TICKS.reduce((a, b) =>
       Math.abs(b - drop) < Math.abs(a - drop) ? b : a);
     const ticksHtml = DD_TICKS.map(t => {
       const pos   = t / DD_MAX * 100;
-      const label = t === 0 ? 'ATH' : `-${t}%`;
+      const label = t === 0 ? '最高點' : `-${t}%`;
       const cls   = t === nearTick ? 'dd-tick dd-tick-active' : 'dd-tick';
       return `<div class="${cls}" style="left:${pos}%">${label}</div>`;
     }).join('');
@@ -607,20 +623,28 @@
       </div>`;
   }
 
-  function dropCard(drop, subText) {
-    if (drop >= 0) {
+  function isAthToday(asset) {
+    return asset.athDate && asset.currentDate && asset.athDate === asset.currentDate;
+  }
+
+  function ytdBadge(asset) {
+    if (!asset.athYtdCount) return '';
+    return `<span class="ath-ytd-badge">今年創新高 ${asset.athYtdCount} 次</span>`;
+  }
+
+  function dropCard(asset, subText, fmtFn) {
+    if (isAthToday(asset)) {
       return `
         <div class="live-card ath-card">
           <div class="lc-label">距歷史最高點</div>
           <div class="lc-value">創新高</div>
-          <div class="lc-sub">歷史最高點</div>
+          <div class="lc-sub">今日盤中最高</div>
         </div>`;
     }
-    const cls = 'live-drop-neg';
     return `
       <div class="live-card">
         <div class="lc-label">距歷史最高點</div>
-        <div class="lc-value ${cls}">${drop}%</div>
+        <div class="lc-value live-drop-neg">${asset.dropFromAth}%</div>
         <div class="lc-sub">${subText}</div>
       </div>`;
   }
@@ -628,9 +652,13 @@
   const t = d.taiex || {};
   const v = d.vt    || {};
 
+  const athBanner = (isAthToday(t) || isAthToday(v))
+    ? `<div class="ath-banner"><div class="ath-dot"></div>今天股價盤中創新高</div>`
+    : '';
+
   const tSection = `
     <div class="live-section">
-      <div class="live-section-title">台股加權指數 TAIEX</div>
+      <div class="live-section-title">台股加權指數 TAIEX ${ytdBadge(t)}</div>
       <div class="live-group">
         <div class="live-card">
           <div class="lc-label">歷史最高點</div>
@@ -642,15 +670,15 @@
           <div class="lc-value">${t.current ? fmtN(t.current) : '—'}</div>
           <div class="lc-sub">${t.currentDate || ''}</div>
         </div>
-        ${dropCard(t.dropFromAth || 0, t.current && t.ath ? '相差 ' + fmtN(Math.abs(t.current - t.ath)) + ' 點' : '')}
+        ${dropCard(t, t.current && t.ath ? '相差 ' + fmtN(Math.abs(t.current - t.ath)) + ' 點' : '')}
       </div>
-      ${drawdownBar(t.dropFromAth || 0)}
+      ${drawdownBar(t.dropFromAth || 0, isAthToday(t))}
     </div>`;
 
   const vSection = `
     <div class="live-divider"></div>
     <div class="live-section">
-      <div class="live-section-title">VT 全球股票 ETF</div>
+      <div class="live-section-title">VT 全球股票 ETF ${ytdBadge(v)}</div>
       <div class="live-group">
         <div class="live-card">
           <div class="lc-label">歷史最高點</div>
@@ -662,13 +690,14 @@
           <div class="lc-value">${v.current ? fmtUSD(v.current) : '—'}</div>
           <div class="lc-sub">${v.currentDate || ''}</div>
         </div>
-        ${dropCard(v.dropFromAth || 0, v.current && v.ath ? '相差 ' + fmtUSD(Math.abs(v.current - v.ath)) : '')}
+        ${dropCard(v, v.current && v.ath ? '相差 ' + fmtUSD(Math.abs(v.current - v.ath)) : '')}
       </div>
-      ${drawdownBar(v.dropFromAth || 0)}
+      ${drawdownBar(v.dropFromAth || 0, isAthToday(v))}
     </div>`;
 
   el.innerHTML = `
     <div class="live-inner">
+      ${athBanner}
       ${tSection}
       ${vSection}
       <div style="text-align:right">
