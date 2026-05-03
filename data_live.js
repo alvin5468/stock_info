@@ -13,5 +13,5 @@ const DATA_LIVE = {
     athDate: '2026-05-01',
     dropFromAth: -0.63,
   },
-  updatedAt: '2026-05-03 13:45',
+  updatedAt: '2026-05-03 14:00',
 };
