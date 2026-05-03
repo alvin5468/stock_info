@@ -70,6 +70,61 @@
       background: #e8e8e8;
       width: 100%;
     }
+    .dd-wrap {
+      margin-top: 14px;
+      padding: 0 2px;
+    }
+    .dd-scale {
+      position: relative;
+      height: 14px;
+      border-radius: 7px;
+      background: linear-gradient(
+        to right,
+        #f0fdf4 0%,
+        #f0fdf4 20%,
+        #16a34a 72%,
+        #052e16 100%
+      );
+    }
+    .dd-pointer {
+      position: absolute;
+      top: -5px;
+      width: 3px;
+      height: 24px;
+      background: #1a1a1a;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      z-index: 1;
+    }
+    .dd-ticks {
+      position: relative;
+      height: 20px;
+      margin-top: 3px;
+    }
+    .dd-tick {
+      position: absolute;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #bbb;
+      white-space: nowrap;
+    }
+    .dd-tick::before {
+      content: '';
+      display: block;
+      width: 1px;
+      height: 4px;
+      background: #ddd;
+      margin: 0 auto 2px;
+    }
+    .dd-tick.dd-tick-active {
+      color: #1a1a1a;
+      font-weight: 600;
+    }
+    .dd-tick.dd-tick-active::before { background: #1a1a1a; }
+    .live-card.ath-card { background: #fff1f1; border-color: #fca5a5; }
+    .live-card.ath-card .lc-label { color: #e24b4a; }
+    .live-card.ath-card .lc-value { color: #e24b4a; font-size: 20px; }
+    .dd-pointer.ath-pointer { background: #e24b4a; width: 4px; }
 
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -362,15 +417,15 @@
 <nav class="top-nav">
   <span class="nav-logo">指數化投資分析</span>
   <div class="nav-links">
-    <a href="#liveBar"        class="nav-link active" data-section="sec-live">即時股價</a>
+    <a href="#sec-live"       class="nav-link active" data-section="sec-live">即時股價</a>
     <a href="#sec-simulator"  class="nav-link"        data-section="sec-simulator">投資試算</a>
-    <a href="#sec-withdrawal" class="nav-link"        data-section="sec-withdrawal">提領法則模擬</a>
+    <a href="#sec-withdrawal" class="nav-link"        data-section="sec-withdrawal">提領法則</a>
   </div>
   <div class="nav-views">已瀏覽 <span id="pageViewCount">—</span> 次</div>
 </nav>
 
 <!-- 即時行情 -->
-<div class="live-bar page-section" id="liveBar" data-nav="sec-live"></div>
+<div class="live-bar page-section" id="sec-live"></div>
 
 <section id="sec-simulator" class="page-section">
   <div class="section-inner">
@@ -521,21 +576,52 @@
 // 即時行情區塊
 // ════════════════════════════════════════
 (function initLiveBar() {
-  const el = document.getElementById('liveBar');
+  const el = document.getElementById('sec-live');
   if (!el || typeof DATA_LIVE === 'undefined') return;
 
   const d = DATA_LIVE;
   const fmtN = n => n.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtUSD = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const DD_MAX   = 25;
+  const DD_TICKS = [0, 5, 10, 15, 20, 25];
+
+  function drawdownBar(dropPct) {
+    const isAth  = dropPct >= 0;
+    const drop   = Math.abs(Math.min(dropPct, 0));
+    const posPct = Math.min(drop / DD_MAX * 100, 100);
+    const nearTick = DD_TICKS.reduce((a, b) =>
+      Math.abs(b - drop) < Math.abs(a - drop) ? b : a);
+    const ticksHtml = DD_TICKS.map(t => {
+      const pos   = t / DD_MAX * 100;
+      const label = t === 0 ? 'ATH' : `-${t}%`;
+      const cls   = t === nearTick ? 'dd-tick dd-tick-active' : 'dd-tick';
+      return `<div class="${cls}" style="left:${pos}%">${label}</div>`;
+    }).join('');
+    const ptrCls = isAth ? 'dd-pointer ath-pointer' : 'dd-pointer';
+    return `
+      <div class="dd-wrap">
+        <div class="dd-scale">
+          <div class="${ptrCls}" style="left:${posPct}%"></div>
+        </div>
+        <div class="dd-ticks">${ticksHtml}</div>
+      </div>`;
+  }
+
   function dropCard(drop, subText) {
-    const cls  = drop >= 0 ? 'live-drop-pos' : 'live-drop-neg';
-    const sign = drop >= 0 ? '+' : '';
-    const valStr = drop !== 0 ? `${sign}${drop}%` : '—';
+    if (drop >= 0) {
+      return `
+        <div class="live-card ath-card">
+          <div class="lc-label">距歷史最高點</div>
+          <div class="lc-value">創新高</div>
+          <div class="lc-sub">歷史最高點</div>
+        </div>`;
+    }
+    const cls = 'live-drop-neg';
     return `
       <div class="live-card">
         <div class="lc-label">距歷史最高點</div>
-        <div class="lc-value ${cls}">${valStr}</div>
+        <div class="lc-value ${cls}">${drop}%</div>
         <div class="lc-sub">${subText}</div>
       </div>`;
   }
@@ -559,6 +645,7 @@
         </div>
         ${dropCard(t.dropFromAth || 0, t.current && t.ath ? '相差 ' + fmtN(Math.abs(t.current - t.ath)) + ' 點' : '')}
       </div>
+      ${drawdownBar(t.dropFromAth || 0)}
     </div>`;
 
   const vSection = `
@@ -578,6 +665,7 @@
         </div>
         ${dropCard(v.dropFromAth || 0, v.current && v.ath ? '相差 ' + fmtUSD(Math.abs(v.current - v.ath)) : '')}
       </div>
+      ${drawdownBar(v.dropFromAth || 0)}
     </div>`;
 
   el.innerHTML = `
@@ -600,7 +688,7 @@
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        const id = entry.target.dataset.nav || entry.target.id;
+        const id = entry.target.id;
         navLinks.forEach(a => {
           a.classList.toggle('active', a.dataset.section === id);
         });
