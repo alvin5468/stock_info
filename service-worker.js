@@ -1,8 +1,7 @@
-const CACHE = 'slow-rich-v1';
+const CACHE = 'slow-rich-v2';
 const STATIC = [
   './',
   './index.html',
-  './data_live.js',
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',
@@ -23,16 +22,15 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for data_live.js so price updates always show
+  // data_live.js：完全繞過 HTTP cache，直接打網路
   if (e.request.url.includes('data_live.js')) {
     e.respondWith(
-      fetch(e.request)
-        .then(r => { caches.open(CACHE).then(c => c.put(e.request, r.clone())); return r; })
+      fetch(new Request(e.request.url, {cache: 'no-store'}))
         .catch(() => caches.match(e.request))
     );
     return;
   }
-  // Cache-first for everything else
+  // 其他靜態資源：cache-first
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );
