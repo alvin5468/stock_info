@@ -9,13 +9,13 @@ const DATA_LIVE = {
     athYtdYear: 2026,
   },
   vt: {
-    current: 151.41,
+    current: 151.42,
     currentDate: '2026-05-04',
     ath: 152.4,
     athDate: '2026-05-01',
-    dropFromAth: -0.65,
+    dropFromAth: -0.64,
     athYtdCount: 18,
     athYtdYear: 2026,
   },
-  updatedAt: '2026-05-04 23:04',
+  updatedAt: '2026-05-04 23:11',
 };
