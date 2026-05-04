@@ -424,9 +424,40 @@
     .ms-not-reached { color: #ccc; font-size: 12px; }
     .ms-already { color: #34d399; font-size: 12px; }
 
-    </style>
+    /* ═══════════════════════════════════════
+     Pull-to-refresh 指示器
+  ═══════════════════════════════════════ */
+  #ptr-indicator {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 0;
+    overflow: hidden;
+    background: #0f172a;
+    z-index: 9999;
+    transition: height 0.1s;
+    color: #94a3b8;
+    font-size: 13px;
+    gap: 8px;
+  }
+  #ptr-indicator.ptr-ready { color: #22c55e; }
+  .ptr-spinner {
+    width: 18px; height: 18px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ptr-spin 0.7s linear infinite;
+  }
+  @keyframes ptr-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+<div id="ptr-indicator">
+  <div class="ptr-spinner"></div>
+  <span id="ptr-text">放開即可更新</span>
+</div>
 
 <style>
   .top-nav { flex-wrap: wrap; height: auto; min-height: 52px; row-gap: 0; }
@@ -1317,6 +1348,45 @@ runSimulator();
   };
 
   runWithdrawal();
+})();
+
+// ════════════════════════════════════════
+// Pull-to-refresh
+// ════════════════════════════════════════
+(function() {
+  const el   = document.getElementById('ptr-indicator');
+  const text = document.getElementById('ptr-text');
+  const THRESHOLD = 70;
+  let startY = 0, pulling = false;
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY === 0) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dist = Math.min(e.touches[0].clientY - startY, THRESHOLD * 1.5);
+    if (dist <= 0) { pulling = false; el.style.height = '0'; return; }
+    el.style.height = Math.min(dist, THRESHOLD) + 'px';
+    if (dist >= THRESHOLD) {
+      el.classList.add('ptr-ready');
+      text.textContent = '放開即可更新';
+    } else {
+      el.classList.remove('ptr-ready');
+      text.textContent = '下拉更新';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    if (el.classList.contains('ptr-ready')) {
+      el.style.height = THRESHOLD + 'px';
+      setTimeout(() => location.reload(), 200);
+    } else {
+      el.style.height = '0';
+    }
+  });
 })();
 
 // ════════════════════════════════════════
